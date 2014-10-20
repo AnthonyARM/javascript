@@ -3,5 +3,8 @@
   "version": "0.0.1",
   "scripts": {
     "start": "ws"
+  },
+  "devDependencies": {
+    "dojo": "~1.10.2"
   }
 }

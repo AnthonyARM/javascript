@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html >
+<head>
+
+	<link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/dojo/1.10.1/dijit/themes/claro/claro.css">
+	
+	<script>dojoConfig = {parseOnLoad: true}</script>
+	<script src="//ajax.googleapis.com/ajax/libs/dojo/1.10.1/dojo/dojo.js"
+            data-dojo-config="async: true"></script>
+	<script>
+require(["dojo","dojox/xml/parser"], function(dojo, dojox_xml_parser){
+   // Parse text and generate an XML DOM
+   var xml = "<tnode><node>Some Text</node><node>Some Other Text</node></tnode>";
+   var dom = dojox_xml_parser.parse(xml);
+
+   // Walk DOM and attach into the display how many child nodes were parsed out.
+   var ap = dojo.byId("xmlContent");
+   var docNode = dom.documentElement;
+   ap.appendChild(document.createTextNode("Document contains: " + docNode.childNodes.length + " elements"));
+   ap.appendChild(document.createElement("br"));
+   ap.appendChild(document.createElement("br"));
+
+   // Write text content into the display.
+   for(var i = 0; i < docNode.childNodes.length; i++){
+     ap.appendChild(document.createTextNode("Element: [" + i + "] contains text: " + dojox_xml_parser.textContent(docNode.childNodes[i])));
+     ap.appendChild(document.createElement("br"));
+   }
+
+   // Write out the XML text obtained from converting the DOM back.
+   ap.appendChild(document.createElement("br"));
+   ap.appendChild(document.createTextNode("Document XML: " + dojox_xml_parser.innerXML(docNode)));
+   ap.appendChild(document.createElement("br"));
+   ap.appendChild(document.createElement("br"));
+});
+function getAllMethods(object) {
+	return Object.getOwnPropertyNames(object).filter(function(property) {
+		return typeof object[property] == 'function';
+	});
+}
+
+function getText( node, name )
+{
+	return node.getElementsByTagName( name )[0].childNodes[0].nodeValue;
+}
+function getNode( node, name )
+{
+	return node.getElementsByTagName( name )[0];
+}
+
+require(["dojo/request", "dojo/dom", "dojo/dom-construct", "dojo/json", "dojo/on","dojox/xml/DomParser", "dojo/store/JsonRest", "dojo/domReady!"],
+function(request, dom, domConst, JSON, on, parser,  writer){
+  on(dom.byId("startButton"), "click", function(){
+    domConst.place("<p>Requesting...</p>", "output");
+    request("./data/test.tcx",{
+      handleAs: "xml"
+    }).then(function(xmldoc){
+//console.debug(xmldoc);
+var dom = parser.parse(xmldoc);
+	var points = dom.getElementsByTagName("Trackpoint");
+	var out = new writer( { target: "data/test.tcx"} );
+	out.add( { foo : 'foo', bar:'foobar'});
+	for( var pt of points )
+	{
+		try
+		{
+			//console.debug( getAllMethods( pt[0] ) );
+			var dateStr = getText( pt, "Time");
+			var pos = getNode( pt, "Position");
+			var latiStr = getText( pos, 'LatitudeDegrees');
+			var longStr = getText( pos, 'LongitudeDegrees');
+			var distStr = getText( pt, 'DistanceMeters');
+			var hr = getNode( pt, 'HeartRateBpm');
+			var hrStr = "";
+			if( hr )
+			{
+				hrStr = getText( hr, 'Value');
+			}
+
+			console.debug( "Date "+ dateStr + " Latitude "+ latiStr + " Longitude "+ longStr + " HR : "+ hrStr );
+			//out.newItem( { date: dateStr, latitude: latiStr });
+			//console.debug( pt );
+		}
+		catch( err )
+		{
+			console.debug( err );
+		}
+	}
+	domConst.place("<p>xmldoc: <code>" + JSON.stringify(xmldoc) + "</code>", "output");
+    });
+  });
+});
+	</script>
+</head>
+<body class="claro">
+    <div id="xmlContent"></div>
+<h1>Output:</h1>
+<div id="output"></div>
+<button type="button" id="startButton">Start</button>
+</body>
+</html>
