@@ -1,0 +1,233 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Rowing test</title>
+        <link rel="stylesheet" href="style.css" media="screen">
+        <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/dojo/1.10.1/dijit/themes/claro/claro.css" media="screen">
+    </head>
+    <body class="claro">
+        <p id="error"></p>
+        <div id="appLayout" class="demoLayout">
+        </div>
+        <!-- load dojo and provide config via data attribute -->
+        <script src="//ajax.googleapis.com/ajax/libs/dojo/1.10.1/dojo/dojo.js"
+                data-dojo-config="async: 1">
+        </script>
+        <script>
+        function get_boats( cb )
+        {
+                require([
+                        'dojo/_base/xhr',
+                        'dojo/json',
+                        ], function(xhr,json) {
+                        xhr.post({
+                                // The URL of the request
+                                url: "db_select.php",
+                                // No content property -- just send the entire form
+                                content: { query: "SELECT * from Boats" },
+                                // The success handler
+                                load: function(response)
+                                {
+                                        cb( json.parse( response, true ));
+                                }
+                        });
+                        });
+        }
+        function get_rowers( cb )
+        {
+                var result;
+                require([
+                        'dojo/_base/xhr',
+                        'dojo/json',
+                        ], function(xhr,json) {
+                        xhr.post({
+                                // The URL of the request
+                                url: "db_select.php",
+                                // No content property -- just send the entire form
+                                content: { query: "SELECT * from Rowers" },
+                                // The success handler
+                                load: function(response)
+                                {
+                                        cb( json.parse( response, true ) );
+                                }
+                        });
+                        });
+                return result;
+        }
+        function create_new_outing_tab( main )
+        {
+                require(["dojo/store/Memory","dojo/on","dijit/form/Form", "dijit/form/MultiSelect", "dijit/form/FilteringSelect","dijit/layout/ContentPane","dojo/_base/window",
+                    "dijit/DropDownMenu", "dijit/MenuItem","dijit/form/Button", "dojox/layout/TableContainer", "dijit/form/TextBox", "dijit/form/CheckBox", "dojo/domReady!"],
+                function(Memory, on, Form, MultiSelect, FilteringSelect, ContentPane, win, DropDownMenu, MenuItem, Button, TableContainer, TextBox, CheckBox){
+                        // create the BorderContainer and attach it to our appLayout div
+                /*
+                        main.addChild( new Button ( { label: "Upload", onClick: function() { console.log("First button was clicked");
+                                                }}));
+                        main.addChild( new Button ( { label: "Second", onClick: function() { console.log("Second button was clicked");
+                                                }}));
+                       */
+
+                var form = new Form();
+                var table = new TableContainer( { cols: 2, showLabels:false } );
+                var title = new TextBox();
+
+                table.addChild( new ContentPane({content: "Title:"}));
+                table.addChild( title );
+
+                table.addChild( new ContentPane({content: "Boat:"}));
+                var boat = new MultiSelect({ multiple : "false" });
+                {
+                        var opt = win.doc.createElement('option');
+                        opt.innerHTML = "Erg";
+                        opt.value = "0,0";
+                        opt.selected = true;
+                        boat.containerNode.appendChild(opt);
+                }
+                get_boats( function( boats )
+                {
+                        for( var b of boats )
+                        {
+                                var opt = win.doc.createElement('option');
+                                opt.innerHTML = b.name;
+                                opt.value = b.num_rowers +","+ b.cox;
+                                boat.containerNode.appendChild(opt);
+                        }
+                });
+
+                var num_rowers = 0;
+                var people = [
+                        { name : "Uploader", show: true },
+                        { name : "Cox", show: false },
+                        { name : "Stroke", show: false},
+                        { name : 7, show: false},
+                        { name : 6, show: false},
+                        { name : 5, show: false},
+                        { name : 4, show: false},
+                        { name : 3, show: false},
+                        { name : 2, show: false},
+                        { name : "Bow",  show: false},
+                        { name : "Coach", show: false}
+                ];
+                table.addChild( boat );
+
+                var rowersStore = new Memory();
+                get_rowers( function( rowers )
+                {
+                        for( var b of rowers )
+                        {
+                                rowersStore.put( { id: b.id, name: b.firstName + " " + b.lastName} );
+                        }
+                });
+
+                var peopleNodes = new Array();
+                for(var p of people )
+                {
+                        var newNode = { label: new ContentPane({content: p.name+":", id:p.name+"Lbl", style: "display:" + (p.show ? "block" : "none")+";"}),
+                                        select: new FilteringSelect({store: rowersStore, id:p.name+"Select", style: "display:" + (p.show ? "block" : "none")+";"})
+                        };
+                        table.addChild( newNode.label );
+                        table.addChild( newNode.select );
+                        peopleNodes[p.name] = newNode;
+                }
+
+                on( boat, "change", function(evt){
+                                var val = String(evt).split(",");
+                                var num_rowers = parseInt(val[0]);
+                                // Show cox ?
+                                console.log("num_rowers = "+num_rowers+" val[1] = "+val[1]);
+                                people[1].show = val[1] == 1;
+                                people[2].show = num_rowers != 0;
+                                people[3].show = num_rowers == 8;
+                                people[4].show = num_rowers == 8;
+                                people[5].show = num_rowers == 8;
+                                people[6].show = num_rowers == 8;
+                                people[7].show = num_rowers >= 4;
+                                people[8].show = num_rowers >= 4;
+                                people[9].show = num_rowers >= 1;
+                                people[10].show = num_rowers >= 1;
+                                console.log("1 = "+people[1].show);
+
+                                for( p of people )
+                                {
+                                        console.log("Name "+p.name+" show "+p.show);
+                                        peopleNodes[p.name].label.set("style","display:" + (p.show ? "block" : "none"));
+                                        peopleNodes[p.name].select.set("style","display:" +(p.show ? "block" : "none"));
+                                }
+
+                                });
+
+                table.addChild( new ContentPane({content: "TCX track:"}));
+                table.addChild( new Button( { id: "tcxBtn", label:"Choose file" } ) );
+
+                table.placeAt( form.containerNode );
+                main.addChild( form );
+                });
+        }
+
+        function create_recent_outings_tab( main )
+        {
+        }
+
+        function create_search_tab( main )
+        {
+        }
+
+        function create_main_layout()
+        {
+                require(["dijit/registry", "dijit/layout/BorderContainer",
+                    "dijit/layout/TabContainer", "dijit/layout/ContentPane", "dijit/layout/SplitContainer","dijit/form/Button","dojo/domReady!"],
+                function(registry, BorderContainer, TabContainer, ContentPane, SplitContainer, Button){
+                        // create the BorderContainer and attach it to our appLayout div
+                        var appLayout = new BorderContainer({
+                            design: "headline"
+                        }, "appLayout");
+
+                        // create the TabContainer
+                        var contentTabs = new TabContainer({
+                            region: "center",
+                            id: "contentTabs",
+                            tabPosition: "top",
+                            "class": "centerPanel"
+                        });
+
+                        // add the TabContainer as a child of the BorderContainer
+                        appLayout.addChild( contentTabs );
+
+                        // create and add the BorderContainer edge regions
+                        appLayout.addChild(
+                            new ContentPane({
+                                region: "top",
+                                "class": "edgePanel",
+                                content: "Header content (top)"
+                            })
+                        );
+                        appLayout.addChild(
+                            new ContentPane({
+                                region: "left",
+                                id: "leftCol", "class": "edgePanel",
+                                content: "Sidebar content (left)",
+                                splitter: true
+                            })
+                        );
+
+                        var recent_outings = new ContentPane({ title: "Recent outings" } );
+                        var search = new ContentPane({ title: "Search" } );
+                        var new_outing = new ContentPane({ title: "Upload new outing" } );
+
+                        create_new_outing_tab( new_outing );
+                        create_recent_outings_tab( recent_outings );
+                        create_search_tab( search );
+
+                        contentTabs.addChild( recent_outings );
+                        contentTabs.addChild( search );
+                        contentTabs.addChild( new_outing );
+
+                        // start up and do layout
+                        appLayout.startup();
+                });
+        }
+        create_main_layout();
+        </script>
+    </body>
+</html>
