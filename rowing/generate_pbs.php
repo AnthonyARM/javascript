@@ -28,17 +28,17 @@ class Point
         public $next = NULL;
         public $time = 0.0;
         public $speed = 0.0;
-        public $altitude= 0.0;
         public $delta_distance = 0.0;
         public $delta_time = 0.0;
+        public $id = 0;
 
-        function __construct( $prev, $distance, $date, $time, $speed, $altitude )
+        function __construct( $prev, $distance, $date, $time, $speed, $id )
         {
                 $this->prev = $prev;
                 $this->distance = $distance;
                 $this->date = $date;
                 $this->time = $time;
-                $this->altitude = $altitude;
+                $this->id = $id;
                 if( $this->prev )
                 {
                         $this->prev->next = $this;
@@ -101,6 +101,7 @@ class PB
                 if( $this->start )
                 {
                         $s .= "[". intval($this->start->distance - $this->piece_start->distance)." -> ".intval($this->end->distance - $this->piece_start->distance)."]";
+                        $s .= "IDS: ".$this->start->id." --> ".$this->end->id;
                 }
                 return $s;
         }
@@ -137,6 +138,7 @@ class Piece
         {
                 $s = "";
                 $s .= "Start ". number_format(0.001 * $this->start->distance,2). " End ".number_format(0.001 * $this->end->distance, 2 )." km<br/>";
+                //$s .= $this->start->id." --> ".$this->end->id."<br/>";
                 /* TODO: Altitude doesn't work, remove it
                 if( $this->start->altitude > $this->end->altitude )
                 {
@@ -166,7 +168,7 @@ $points = array();
 $prev = NULL;
 while ($row = $res->fetch_array(MYSQLI_ASSOC)) 
 {
-        $point = new Point( $prev, $row["distance"], $row["date"], $row["time"], $row["speed"], $row["altitude"]);
+        $point = new Point( $prev, $row["distance"], $row["date"], $row["time"], $row["speed"], $row["id"]);
         $points[] = $point;
         $prev = $point;
 }

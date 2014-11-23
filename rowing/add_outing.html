@@ -5,12 +5,16 @@
         <title>Rowing test</title>
         <link rel="stylesheet" href="style.css" media="screen">
         <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/dojo/1.10.1/dijit/themes/claro/claro.css" media="screen">
+<style type="text/css">
+body,html { height:100%; }
+</style>
     </head>
     <body class="claro">
         <p id="error"></p>
         <div id="appLayout" class="demoLayout">
         </div>
         <!-- load dojo and provide config via data attribute -->
+        <script type="text/javascript" src="http://openlayers.org/api/2.10/OpenLayers.js"></script>
         <script src="//ajax.googleapis.com/ajax/libs/dojo/1.10.1/dojo/dojo.js"
                 data-dojo-config="async: 1">
         </script>
@@ -34,9 +38,27 @@
                         });
                         });
         }
+        function get_trackpoints( id_start, id_end, cb )
+        {
+                require([
+                        'dojo/_base/xhr',
+                        'dojo/json',
+                        ], function(xhr,json) {
+                        xhr.post({
+                                // The URL of the request
+                                url: "db_select.php",
+                                // No content property -- just send the entire form
+                                content: { query: "SELECT * from TrackPoints where id between "+id_start+" AND "+id_end },
+                                // The success handler
+                                load: function(response)
+                                {
+                                        cb( json.parse( response, true ) );
+                                }
+                        });
+                        });
+        }
         function get_rowers( cb )
         {
-                var result;
                 require([
                         'dojo/_base/xhr',
                         'dojo/json',
@@ -53,7 +75,6 @@
                                 }
                         });
                         });
-                return result;
         }
         function create_new_outing_tab( main )
         {
@@ -214,6 +235,121 @@
 
         function create_recent_outings_tab( main )
         {
+                require(["dojo/ready", "dojox/geo/openlayers/Map", "dojox/geo/openlayers/GfxLayer",
+                          "dojox/geo/openlayers/GeometryFeature", "dojox/geo/openlayers/Point","dojo/_base/window","dojox/geo/openlayers/Collection",
+                          "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", "dojo/_base/Color" ],
+                     function(ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, Color){
+
+                ready(function(){
+                // create a map widget.
+                var map_div = win.doc.createElement('div');
+                map_div.style.height = "400px";
+                map_div.style.width = "600px";
+                main.containerNode.appendChild(map_div );
+
+                    var map = new Map(map_div);
+                   // This is New York
+                    var ny = {
+                      latitude : 40.71427,
+                      longitude : -74.00597
+                    };
+                    // create a GfxLayer
+                    var layer = new GfxLayer();
+                    // add layer to the map
+                    map.addLayer(layer);
+                    // fit to New York with 0.1 degrees extent
+
+                        var localXY = function(p){
+                                var x = p.x;
+                                var y = p.y;
+                                var layer = map.olMap.baseLayer;
+                                var resolution = map.olMap.getResolution();
+                                var extent = layer.getExtent();
+                                console.log(extent);
+                                var rx = (x / resolution + (-extent.left / resolution));
+                                var ry = ((extent.top / resolution) - y / resolution);
+                                return [rx, ry];
+                        };
+
+                get_trackpoints( 12815, 12895, function( pts )
+                {
+                        var min = { latitude : parseFloat(pts[0].latitude), longitude : parseFloat(pts[0].longitude) } ;
+                        var max = { latitude : parseFloat(pts[0].latitude), longitude : parseFloat(pts[0].longitude) } ;
+                        var min_speed = 2.4447;
+                        var max_speed = 4.79639;
+                        var prev = null;
+                        var mins = 100;
+                        var maxs = 0;
+                        arr.forEach( pts, function(p)
+                        {
+                                var latitude = parseFloat( p.latitude );
+                                var longitude = parseFloat( p.longitude );
+                                var speed = parseFloat( p.speed );
+                                if( latitude > max.latitude ) max.latitude = latitude ;
+                                else if( latitude < min.latitude ) min.latitude = latitude ;
+                                if( longitude > max.longitude ) max.longitude = longitude ;
+                                else if( longitude < min.longitude ) min.longitude = longitude ;
+                                //FIXME Remove this
+                                if( speed > maxs ) maxs = speed;
+                                else if( speed < mins) mins = speed;
+
+                                var ratio = (p.speed - min_speed ) / (max_speed - min_speed );
+                                var colour = Color.blendColors( Color.fromArray([255,0,0]), Color.fromArray([0,255,0]), ratio);
+                                console.log(colour+" Ratio : "+ratio);
+
+                                if( prev)
+                                {
+                                        var diff_longitude = longitude - prev.longitude;
+                                        var diff_latitude = latitude - prev.latitude;
+
+                                        var start = prev;
+                                        for( var i = 0.25; i <= 1.0; i += 0.25 )
+                                        {
+                                                var new_pt = { longitude: prev.longitude + i*diff_longitude, 
+                                                        latitude:prev.latitude + i * diff_latitude, 
+                                                        colour: Color.blendColors( prev.colour, colour, i ) };
+
+                                                var line = new LineString( [{x:start.longitude,y:start.latitude},{x:new_pt.longitude,y:new_pt.latitude}]);
+                                                var f = new GeometryFeature(line);
+                                                f.setStroke({color: start.colour, width: 3});
+                                                layer.addFeature(f);
+                                                start = new_pt;
+                                        }
+
+                                }
+
+                                prev = { longitude: longitude, latitude:latitude, colour: colour};
+
+                                var pt = new Point( {x:longitude,y:latitude} );
+                            var f = new GeometryFeature(pt);
+                            var size = 2;
+                            // set the shape properties, fill and stroke
+                            //f.setFill([ 0, 128, 128 ]);
+                            f.setStroke([ 0, 0, 0, 1 ]);
+                            f.setShapeProperties({
+                              r : 2
+                            });
+                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, dist: "+(p.distance / 1000).toFixed(2)+" km, time: "+ (p.time / 60).toFixed(2)+" min";
+                            // add the feature to the layer
+                            layer.addFeature(f);
+                            f.getShape();
+                             pt.shape.connect("onmouseover",function(evt){
+                                             //evt.relatedTarget
+                                             Tooltip.show(pt.tooltip, {x:evt.pageX, y:evt.pageY, w:2, h:2});
+                                                });
+                             pt.shape.connect("onmouseout", function(){
+                                                                //Tooltip.hide(pt.shape);
+                                                        });
+                        });
+                        console.log("Min speed : "+mins+" Max speed : "+ maxs);
+                        console.log(min.latitude+" , "+min.longitude+" / "+max.latitude+" , "+max.longitude);
+                    map.fitTo({
+                    bounds :[ min.longitude,min.latitude,max.longitude,max.latitude ]
+                    });
+
+                });
+            });
+            });
         }
 
         function create_search_tab( main )
