@@ -19,6 +19,19 @@ body,html { height:100%; }
                 data-dojo-config="async: 1">
         </script>
         <script>
+        var hashes = null;
+        require(["dojo/io-query","dojo/hash"], function(ioQuery,hash) 
+        {
+                hashes = ioQuery.queryToObject(hash()); //get
+        });
+        function update_url()
+        {
+                require(["dojo/io-query","dojo/hash"], function(ioQuery,hash) 
+                {
+                        hash( ioQuery.objectToQuery(hashes)); //set url
+                });
+        }
+
         function get_boats( cb )
         {
                 require([
@@ -394,17 +407,23 @@ body,html { height:100%; }
                             })
                         );
 
-                        var recent_outings = new ContentPane({ title: "Recent outings" } );
-                        var search = new ContentPane({ title: "Search" } );
-                        var new_outing = new ContentPane({ title: "Upload new outing" } );
+                        var tabs = new Array();
+                        tabs.push( new ContentPane({ title: "Recent outings", id:"recent", factory: create_recent_outings_tab } ));
+                        tabs.push( new ContentPane({ title: "Search", id:"search", factory: create_search_tab } ));
+                        tabs.push( new ContentPane({ title: "Add a new outing", id:"add", factory: create_new_outing_tab } ));
+                        for( var tab of tabs )
+                        {
+                                tab.factory( tab );
+                                contentTabs.addChild( tab );
+                                if( hashes.tab == tab.id )
+                                        contentTabs.selectChild( tab );
+                        }
 
-                        create_new_outing_tab( new_outing );
-                        create_recent_outings_tab( recent_outings );
-                        create_search_tab( search );
+                        contentTabs.watch("selectedChildWidget", function(name, oval, nval){
+                                hashes.tab = nval.id;
+                                update_url();
+                                            });
 
-                        contentTabs.addChild( recent_outings );
-                        contentTabs.addChild( search );
-                        contentTabs.addChild( new_outing );
 
                         // start up and do layout
                         appLayout.startup();
