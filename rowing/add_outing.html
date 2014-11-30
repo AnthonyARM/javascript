@@ -24,6 +24,20 @@ body,html { height:100%; }
         {
                 hashes = ioQuery.queryToObject(hash()); //get
         });
+        function time_to_str( time_sec )
+        {
+                var mins = parseInt( time_sec / 60 );
+                var secs = time_sec - mins * 60;
+                var hours = parseInt( mins / 60 );
+                mins = mins - hours * 60;
+                var str = "";
+                if( hours > 0 )
+                        str += hours +" h ";
+                if( mins > 0 )
+                        str += mins + " min ";
+                str += secs + " secs";
+                return str;
+        }
         function update_url()
         {
                 require(["dojo/io-query","dojo/hash"], function(ioQuery,hash) 
@@ -250,17 +264,48 @@ body,html { height:100%; }
         {
                 require(["dojo/ready", "dojox/geo/openlayers/Map", "dojox/geo/openlayers/GfxLayer",
                           "dojox/geo/openlayers/GeometryFeature", "dojox/geo/openlayers/Point","dojo/_base/window","dojox/geo/openlayers/Collection",
-                          "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", "dojo/_base/Color" ],
-                     function(ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, Color){
+                          "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", 
+                          "dojo/_base/Color", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form" ],
+                     function(ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
+                             Color, Select, TableContainer, ContentPane, Form){
 
                 ready(function(){
                 // create a map widget.
-                var map_div = win.doc.createElement('div');
-                map_div.style.height = "400px";
-                map_div.style.width = "600px";
-                main.containerNode.appendChild(map_div );
+                var horizontal_table = new TableContainer( { cols: 1, showLabels: false, style:'height:100%;'} );
+                var type_select = new Select( { options : [ 
+                        { label : 'Recent outings' , value:'recent', selected: true}, 
+                        { label : 'Personal Bests' , value:'pbs'} ] } );
+                if( hashes.type_select )
+                {
+                       //Check it's a valid option:
+                       for( opt of type_select.options )
+                       {
+                                if( opt.value == hashes.type_select )
+                                {
+                                        type_select.set('value', hashes.type_select);
+                                        break;
+                                }
+                       }
+                }
+                if( type_select.value != hashes.type_select )
+                {
+                        hashes.type_select = type_select.value;
+                        update_url();
+                }
 
-                    var map = new Map(map_div);
+                type_select.on("change", function(new_value) { 
+                        hashes.type_select = new_value;
+                        update_url();
+                        } );
+
+
+                var map_container = new ContentPane( { style:'height:100%;' });
+                //var map_container = new ContentPane( { style:'height:400px; width:600px;' });
+                main.addChild( horizontal_table );
+                horizontal_table.addChild( type_select );
+                horizontal_table.addChild( map_container );
+
+                    var map = new Map(map_container.containerNode);
                    // This is New York
                     var ny = {
                       latitude : 40.71427,
@@ -284,12 +329,12 @@ body,html { height:100%; }
                                 return [rx, ry];
                         };
 
-                get_trackpoints( 12815, 12895, function( pts )
+                get_trackpoints( 12492, 12522, function( pts )
                 {
                         var min = { latitude : parseFloat(pts[0].latitude), longitude : parseFloat(pts[0].longitude) } ;
                         var max = { latitude : parseFloat(pts[0].latitude), longitude : parseFloat(pts[0].longitude) } ;
-                        var min_speed = 2.4447;
-                        var max_speed = 4.79639;
+                        var min_speed = 3.77777;
+                        var max_speed = 4.1994;
                         var prev = null;
                         var mins = 100;
                         var maxs = 0;
@@ -308,7 +353,7 @@ body,html { height:100%; }
 
                                 var ratio = (p.speed - min_speed ) / (max_speed - min_speed );
                                 var colour = Color.blendColors( Color.fromArray([255,0,0]), Color.fromArray([0,255,0]), ratio);
-                                console.log(colour+" Ratio : "+ratio);
+                                //console.log(colour+" Ratio : "+ratio);
 
                                 if( prev)
                                 {
@@ -342,7 +387,7 @@ body,html { height:100%; }
                             f.setShapeProperties({
                               r : 2
                             });
-                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, dist: "+(p.distance / 1000).toFixed(2)+" km, time: "+ (p.time / 60).toFixed(2)+" min";
+                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, dist: "+(p.distance / 1000).toFixed(2)+" km, time: "+ time_to_str(p.time);
                             // add the feature to the layer
                             layer.addFeature(f);
                             f.getShape();
@@ -351,7 +396,8 @@ body,html { height:100%; }
                                              Tooltip.show(pt.tooltip, {x:evt.pageX, y:evt.pageY, w:2, h:2});
                                                 });
                              pt.shape.connect("onmouseout", function(){
-                                                                //Tooltip.hide(pt.shape);
+                                                                //FIXME: Doesn't work
+                                             Tooltip.hide(pt.shape);
                                                         });
                         });
                         console.log("Min speed : "+mins+" Max speed : "+ maxs);
@@ -411,15 +457,28 @@ body,html { height:100%; }
                         tabs.push( new ContentPane({ title: "Recent outings", id:"recent", factory: create_recent_outings_tab } ));
                         tabs.push( new ContentPane({ title: "Search", id:"search", factory: create_search_tab } ));
                         tabs.push( new ContentPane({ title: "Add a new outing", id:"add", factory: create_new_outing_tab } ));
+                        if( ! hashes.tab )
+                        {
+                                hashes.tab = tabs[0].id;
+                                update_url();
+                        }
                         for( var tab of tabs )
                         {
-                                tab.factory( tab );
                                 contentTabs.addChild( tab );
                                 if( hashes.tab == tab.id )
+                                {
+                                        tab.factory( tab );
+                                        tab.factory = null;
                                         contentTabs.selectChild( tab );
+                                }
                         }
 
                         contentTabs.watch("selectedChildWidget", function(name, oval, nval){
+                                if( nval.factory )
+                                {
+                                        nval.factory( nval );
+                                        nval.factory = null;
+                                }
                                 hashes.tab = nval.id;
                                 update_url();
                                             });
