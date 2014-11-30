@@ -76,7 +76,7 @@ class PB
                                         if( ($this->start && $t < $best ) || !$this->start )
                                         {
                                                 $this->start = $start;
-                                                $this->end = $end;
+                                                $this->end = $pt;
                                                 $best = $t;
                                         }
                                         $start = $start->next;
@@ -101,7 +101,7 @@ class PB
                 if( $this->start )
                 {
                         $s .= "[". intval($this->start->distance - $this->piece_start->distance)." -> ".intval($this->end->distance - $this->piece_start->distance)."]";
-                        $s .= "IDS: ".$this->start->id." --> ".$this->end->id;
+                        $s .= "IDS: ".$this->start->id." --> ".$this->end->id. " Distance = ". ($this->end->distance - $this->start->distance)." meters";
                 }
                 return $s;
         }
