@@ -16,99 +16,17 @@ body,html { height:100%; }
         <!-- load dojo and provide config via data attribute -->
         <script type="text/javascript" src="http://openlayers.org/api/2.10/OpenLayers.js"></script>
         <script src="//ajax.googleapis.com/ajax/libs/dojo/1.10.1/dojo/dojo.js"
-                data-dojo-config="async: 1">
+                data-dojo-config="async: 1, packages: [ {
+                                      name: 'js',
+                                      location: location.pathname.replace(/\/[^/]+$/, '') + '/js' }]" >
         </script>
         <script>
-        var hashes = null;
-        require(["dojo/io-query","dojo/hash"], function(ioQuery,hash) 
-        {
-                hashes = ioQuery.queryToObject(hash()); //get
-        });
-        function time_to_str( time_sec )
-        {
-                var mins = parseInt( time_sec / 60 );
-                var secs = time_sec - mins * 60;
-                var hours = parseInt( mins / 60 );
-                mins = mins - hours * 60;
-                var str = "";
-                if( hours > 0 )
-                        str += hours +" h ";
-                if( mins > 0 )
-                        str += mins + " min ";
-                str += secs + " secs";
-                return str;
-        }
-        function update_url()
-        {
-                require(["dojo/io-query","dojo/hash"], function(ioQuery,hash) 
-                {
-                        hash( ioQuery.objectToQuery(hashes)); //set url
-                });
-        }
-
-        function get_boats( cb )
-        {
-                require([
-                        'dojo/_base/xhr',
-                        'dojo/json',
-                        ], function(xhr,json) {
-                        xhr.post({
-                                // The URL of the request
-                                url: "db_select.php",
-                                // No content property -- just send the entire form
-                                content: { query: "SELECT * from Boats" },
-                                // The success handler
-                                load: function(response)
-                                {
-                                        cb( json.parse( response, true ));
-                                }
-                        });
-                        });
-        }
-        function get_trackpoints( id_start, id_end, cb )
-        {
-                require([
-                        'dojo/_base/xhr',
-                        'dojo/json',
-                        ], function(xhr,json) {
-                        xhr.post({
-                                // The URL of the request
-                                url: "db_select.php",
-                                // No content property -- just send the entire form
-                                content: { query: "SELECT * from TrackPoints where id between "+id_start+" AND "+id_end },
-                                // The success handler
-                                load: function(response)
-                                {
-                                        cb( json.parse( response, true ) );
-                                }
-                        });
-                        });
-        }
-        function get_rowers( cb )
-        {
-                require([
-                        'dojo/_base/xhr',
-                        'dojo/json',
-                        ], function(xhr,json) {
-                        xhr.post({
-                                // The URL of the request
-                                url: "db_select.php",
-                                // No content property -- just send the entire form
-                                content: { query: "SELECT * from Rowers" },
-                                // The success handler
-                                load: function(response)
-                                {
-                                        cb( json.parse( response, true ) );
-                                }
-                        });
-                        });
-        }
         function create_new_outing_tab( main )
         {
-                require(["dojo/store/Memory","dojo/on","dijit/form/Form", "dijit/form/MultiSelect", "dijit/form/FilteringSelect","dijit/layout/ContentPane","dojo/_base/window",
+                require(["js/ajax","dojo/store/Memory","dojo/on","dijit/form/Form", "dijit/form/MultiSelect", "dijit/form/FilteringSelect","dijit/layout/ContentPane","dojo/_base/window",
                          "dojox/form/Uploader",
                     "dijit/form/Button", "dojox/layout/TableContainer", "dijit/form/TextBox", "dijit/form/CheckBox", "dojo/domReady!"],
-                function(Memory, on, Form, MultiSelect, FilteringSelect, ContentPane, win, Uploader, Button, TableContainer, TextBox, CheckBox){
+                function(ajax, Memory, on, Form, MultiSelect, FilteringSelect, ContentPane, win, Uploader, Button, TableContainer, TextBox, CheckBox){
                         // create the BorderContainer and attach it to our appLayout div
                 /*
                         main.addChild( new Button ( { label: "Upload", onClick: function() { console.log("First button was clicked");
@@ -129,7 +47,7 @@ body,html { height:100%; }
                 table.addChild( loc );
                 table.addChild( new ContentPane({content: "Boat:"}));
                 var boat = new MultiSelect({ multiple : "false", name: "boat"});
-                get_boats( function( boats )
+                ajax.get_boats( function( boats )
                 {
                         var first = true;
                         for( var b of boats )
@@ -164,7 +82,7 @@ body,html { height:100%; }
                 table.addChild( boat );
 
                 var rowersStore = new Memory();
-                get_rowers( function( rowers )
+                ajax.get_rowers( function( rowers )
                 {
                         for( var b of rowers )
                         {
@@ -262,13 +180,13 @@ body,html { height:100%; }
 
         function create_recent_outings_tab( main )
         {
-                require(["dojo/ready", "dojox/geo/openlayers/Map", "dojox/geo/openlayers/GfxLayer",
+                require(["js/ajax","js/utils","dojo/ready", "dojox/geo/openlayers/Map", "dojox/geo/openlayers/GfxLayer",
                           "dojox/geo/openlayers/GeometryFeature", "dojox/geo/openlayers/Point","dojo/_base/window","dojox/geo/openlayers/Collection",
                           "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", 
                           "dojo/_base/Color","dijit/form/MultiSelect", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form", 
-                          "dijit/form/CheckBox", "dijit/form/RadioButton" ],
-                     function(ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
-                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton){
+                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url" ],
+                     function(ajax, utils, ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
+                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url){
 
                 ready(function(){
                 // create a map widget.
@@ -277,27 +195,25 @@ body,html { height:100%; }
                 var type_select = new Select( { options : [ 
                         { label : 'Recent outings' , value:'recent', selected: true}, 
                         { label : 'Personal Bests' , value:'pbs'} ] } );
-                if( hashes.type_select )
+                if( url.get("type_select") )
                 {
                        //Check it's a valid option:
                        for( opt of type_select.options )
                        {
-                                if( opt.value == hashes.type_select )
+                                if( opt.value == url.get("type_select") )
                                 {
-                                        type_select.set('value', hashes.type_select);
+                                        type_select.set('value', url.get("type_select"));
                                         break;
                                 }
                        }
                 }
-                if( type_select.value != hashes.type_select )
+                if( type_select.value != url.get("type_select") )
                 {
-                        hashes.type_select = type_select.value;
-                        update_url();
+                        url.set("type_select", type_select.value);
                 }
 
                 type_select.on("change", function(new_value) { 
-                        hashes.type_select = new_value;
-                        update_url();
+                        url.set("type_select", new_value);
                         } );
                         */
 
@@ -323,7 +239,7 @@ body,html { height:100%; }
 
                 var crews = new MultiSelect( { multiple : "true", name: "crews", style: "display: none;" } );
                 //FIXME: Should be get_crews()
-                get_boats( function( boats )
+                ajax.get_boats( function( boats )
                 {
                         var first = true;
                         for( var b of boats )
@@ -347,7 +263,7 @@ body,html { height:100%; }
                 menu_table.addChild( filter_crew );
 
                 var boats = new MultiSelect( { multiple : "true", name: "boats", style: "display: none;" } );
-                get_boats( function( boat_list )
+                ajax.get_boats( function( boat_list )
                 {
                         var first = true;
                         for( var b of boat_list )
@@ -409,7 +325,7 @@ body,html { height:100%; }
                                 return [rx, ry];
                         };
 
-                get_trackpoints( 12492, 12522, function( pts )
+                ajax.get_trackpoints( 12492, 12522, function( pts )
                 {
                         var min = { latitude : parseFloat(pts[0].latitude), longitude : parseFloat(pts[0].longitude) } ;
                         var max = { latitude : parseFloat(pts[0].latitude), longitude : parseFloat(pts[0].longitude) } ;
@@ -467,7 +383,7 @@ body,html { height:100%; }
                             f.setShapeProperties({
                               r : 2
                             });
-                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, dist: "+(p.distance / 1000).toFixed(2)+" km, time: "+ time_to_str(p.time);
+                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, dist: "+(p.distance / 1000).toFixed(2)+" km, time: "+ utils.time_to_str(p.time);
                             // add the feature to the layer
                             layer.addFeature(f);
                             f.getShape();
@@ -498,8 +414,8 @@ body,html { height:100%; }
         function create_main_layout()
         {
                 require(["dijit/registry", "dijit/layout/BorderContainer",
-                    "dijit/layout/TabContainer", "dijit/layout/ContentPane", "dijit/layout/SplitContainer","dijit/form/Button","dojo/domReady!"],
-                function(registry, BorderContainer, TabContainer, ContentPane, SplitContainer, Button){
+                    "dijit/layout/TabContainer", "dijit/layout/ContentPane", "dijit/layout/SplitContainer","dijit/form/Button","js/url","dojo/domReady!"],
+                function(registry, BorderContainer, TabContainer, ContentPane, SplitContainer, Button, url){
                         // create the BorderContainer and attach it to our appLayout div
                         var appLayout = new BorderContainer({
                             design: "headline"
@@ -544,15 +460,14 @@ body,html { height:100%; }
                         tabs.push( new ContentPane({ title: "Add/Edit boats", id:"boats" } ));
                         tabs.push( new ContentPane({ title: "Edit pieces", id:"pieces" } ));
                         tabs.push( new ContentPane({ title: "Add/Edit PB distances", id:"distances" } ));
-                        if( ! hashes.tab )
+                        if( ! url.get("tab") )
                         {
-                                hashes.tab = tabs[0].id;
-                                update_url();
+                                url.set("tab",tabs[0].id);
                         }
                         for( var tab of tabs )
                         {
                                 contentTabs.addChild( tab );
-                                if( hashes.tab == tab.id )
+                                if( url.get("tab") == tab.id )
                                 {
                                         tab.factory( tab );
                                         tab.factory = null;
@@ -566,8 +481,7 @@ body,html { height:100%; }
                                         nval.factory( nval );
                                         nval.factory = null;
                                 }
-                                hashes.tab = nval.id;
-                                update_url();
+                                url.set( "tab", nval.id);
                                             });
 
 
