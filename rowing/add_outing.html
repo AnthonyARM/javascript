@@ -265,13 +265,15 @@ body,html { height:100%; }
                 require(["dojo/ready", "dojox/geo/openlayers/Map", "dojox/geo/openlayers/GfxLayer",
                           "dojox/geo/openlayers/GeometryFeature", "dojox/geo/openlayers/Point","dojo/_base/window","dojox/geo/openlayers/Collection",
                           "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", 
-                          "dojo/_base/Color", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form" ],
+                          "dojo/_base/Color","dijit/form/MultiSelect", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form", 
+                          "dijit/form/CheckBox", "dijit/form/RadioButton" ],
                      function(ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
-                             Color, Select, TableContainer, ContentPane, Form){
+                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton){
 
                 ready(function(){
                 // create a map widget.
-                var horizontal_table = new TableContainer( { cols: 1, showLabels: false, style:'height:100%;'} );
+                var main_table = new TableContainer( { cols: 1, showLabels: false, style:'height:100%;'} );
+                /*
                 var type_select = new Select( { options : [ 
                         { label : 'Recent outings' , value:'recent', selected: true}, 
                         { label : 'Personal Bests' , value:'pbs'} ] } );
@@ -297,13 +299,91 @@ body,html { height:100%; }
                         hashes.type_select = new_value;
                         update_url();
                         } );
+                        */
 
 
                 var map_container = new ContentPane( { style:'height:100%;' });
-                //var map_container = new ContentPane( { style:'height:400px; width:600px;' });
-                main.addChild( horizontal_table );
-                horizontal_table.addChild( type_select );
-                horizontal_table.addChild( map_container );
+                var menu_table = new TableContainer( { cols: 3, showLabels: false, style:'width:400px;white-space:nowrap;'} );
+                var outings_table = new TableContainer( { cols: 2, showLabels: true} );
+                var selection_table = new TableContainer( { cols: 1, showLabels: false} );
+                var recent_selected = new RadioButton( { checked: true, value : "recent", name: "view_selection" });
+                var pbs_selected = new RadioButton( { checked: false, value : "pbs", name: "view_selection" });
+                menu_table.addChild( new ContentPane({content: "View: "}));
+                selection_table.addChild( recent_selected );
+                selection_table.addChild( pbs_selected );
+                main_table.addChild( menu_table );
+                main_table.addChild( outings_table );
+
+                //TODO: Add DataGrid to outings_table with selectionMode=single
+
+                var pbs_categories = new Select ({ options : [
+                        { label : 'Per crew', value:'pb_crew', selected : true },
+                        { label : 'Per boat', value:'pb_boat' }
+                        ], style: "display: none" } );
+
+                var crews = new MultiSelect( { multiple : "true", name: "crews", style: "display: none;" } );
+                //FIXME: Should be get_crews()
+                get_boats( function( boats )
+                {
+                        var first = true;
+                        for( var b of boats )
+                        {
+                                var opt = win.doc.createElement('option');
+                                opt.innerHTML = b.name;
+                                opt.value = b.num_rowers +","+ b.cox+","+b.id;
+                                if(first)
+                                {
+                                        opt.selected = "selected";
+                                        first = false;
+                                }
+                                crews.containerNode.appendChild(opt);
+                        }
+                });
+
+
+                var filter_crew = new CheckBox( { id: "filter_crew", checked: false, onChange: function(b) { 
+                                crews.set("style","display:" + (b ? "block" : "none"));
+                                } });
+                menu_table.addChild( filter_crew );
+
+                var boats = new MultiSelect( { multiple : "true", name: "boats", style: "display: none;" } );
+                get_boats( function( boat_list )
+                {
+                        var first = true;
+                        for( var b of boat_list )
+                        {
+                                var opt = win.doc.createElement('option');
+                                opt.innerHTML = b.name;
+                                opt.value = b.id;
+                                if(first)
+                                {
+                                        opt.selected = "selected";
+                                        first = false;
+                                }
+                                boats.containerNode.appendChild(opt);
+                        }
+                });
+                var filter_boat = new CheckBox( { id: "filter_boat", checked: false, onChange: function(b) { 
+                                boats.set("style","display:" + (b ? "block" : "none"));
+                                } });
+                menu_table.addChild( filter_boat );
+
+                menu_table.addChild( selection_table );
+                menu_table.addChild( crews );
+                menu_table.addChild( boats );
+
+                function create_label( cb, txt )
+                {
+                        var lbl =  win.doc.createElement("label", { "for": cb.id});
+                        lbl.innerHTML = txt;
+                        cb.domNode.parentNode.appendChild( lbl );
+                }
+                main.addChild( main_table );
+                create_label( filter_crew, "Filter by crew");
+                create_label( filter_boat, "Filter by boat");
+                create_label( recent_selected, "Recent outings");
+                create_label( pbs_selected, "Personal Bests");
+                main_table.addChild( map_container );
 
                     var map = new Map(map_container.containerNode);
                    // This is New York
@@ -444,6 +524,7 @@ body,html { height:100%; }
                                 content: "Header content (top)"
                             })
                         );
+                        /*
                         appLayout.addChild(
                             new ContentPane({
                                 region: "left",
@@ -452,11 +533,17 @@ body,html { height:100%; }
                                 splitter: true
                             })
                         );
+                        */
 
                         var tabs = new Array();
                         tabs.push( new ContentPane({ title: "Recent outings", id:"recent", factory: create_recent_outings_tab } ));
-                        tabs.push( new ContentPane({ title: "Search", id:"search", factory: create_search_tab } ));
+                        //tabs.push( new ContentPane({ title: "Search", id:"search", factory: create_search_tab } ));
                         tabs.push( new ContentPane({ title: "Add a new outing", id:"add", factory: create_new_outing_tab } ));
+                        tabs.push( new ContentPane({ title: "Add/Edit rowers", id:"rowers" } ));
+                        tabs.push( new ContentPane({ title: "Add/Edit crews", id:"crews" } ));
+                        tabs.push( new ContentPane({ title: "Add/Edit boats", id:"boats" } ));
+                        tabs.push( new ContentPane({ title: "Edit pieces", id:"pieces" } ));
+                        tabs.push( new ContentPane({ title: "Add/Edit PB distances", id:"distances" } ));
                         if( ! hashes.tab )
                         {
                                 hashes.tab = tabs[0].id;
