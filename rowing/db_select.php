@@ -2,13 +2,23 @@
 
 include('db_connection.php');
 
-//$res = $mysqli->query("SELECT * from Rowers");
-$res = $mysqli->query($_POST['query']);
+$requests = array (
+        "get_boats" => function() { return "SELECT * from Boats";},
+        "get_trackpoints_in_range" => function() { return "SELECT * from TrackPoints where id between ".$_POST['start']." AND ".$_POST['end']; },
+        "get_rowers" => function() { return "SELECT * from Rowers";}
+);
 
-$json = array();
-while ($row = $res->fetch_array(MYSQLI_ASSOC)) 
+if( array_key_exists( $_POST['query'], $requests ) )
 {
-	array_push($json, $row);
+        $res = $mysqli->query( $requests[ $_POST['query'] ]());
+
+        $json = array();
+        while ($row = $res->fetch_array(MYSQLI_ASSOC)) 
+        {
+                array_push($json, $row);
+        }
+        echo json_encode($json);
 }
-echo json_encode($json);
+else
+        echo "ERROR: Unknown query '"+$_POST['query']+"'<br/>";
 ?>
