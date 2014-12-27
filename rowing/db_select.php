@@ -4,6 +4,7 @@ include('db_connection.php');
 
 $requests = array (
         "get_boats" => function() { return "SELECT * from Boats";},
+        "get_crews" => function() { return "SELECT * from Crews";},
         "get_trackpoints_in_range" => function() { return "SELECT * from TrackPoints where id between ".$_POST['start']." AND ".$_POST['end']; },
         "get_rowers" => function() { return "SELECT * from Rowers";}
 );
