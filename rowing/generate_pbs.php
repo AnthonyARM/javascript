@@ -1,12 +1,5 @@
 <?php
 
-include('db_connection.php');
-
-// TODO Read from database
-$start_speed = 13.0;
-// TODO Read from database
-$stop_speed = 10.0;
-
 function timeStr( $time )
 {
         $minutes = intval($time / 60.0);
@@ -31,14 +24,18 @@ class Point
         public $delta_distance = 0.0;
         public $delta_time = 0.0;
         public $id = 0;
+        public $longitude = 0;
+        public $latitude = 0;
 
-        function __construct( $prev, $distance, $date, $time, $speed, $id )
+        function __construct( $prev, $distance, $date, $time, $speed, $id, $longitude, $latitude )
         {
                 $this->prev = $prev;
                 $this->distance = $distance;
                 $this->date = $date;
                 $this->time = $time;
                 $this->id = $id;
+                $this->longitude = $longitude;
+                $this->latitude = $latitude;
                 if( $this->prev )
                 {
                         $this->prev->next = $this;
@@ -56,6 +53,8 @@ class PB
         public $distance = 0.0;
         public $end = NULL;
         public $time = 0.0;
+        public $min_speed = 0.0;
+        public $max_speed = 0.0;
         function __construct( $start, $end, $distance )
         {
                 $this->piece_start = $start;
@@ -63,6 +62,9 @@ class PB
                 if( $end->distance - $start->distance < $distance ) // If the piece is too short: calculate the projected finish time
                 {
                         $this->time = ($end->time - $start->time) * $distance / ($end->distance - $start->distance);
+                        $this->projected = 1;
+                        $this->start = $start;
+                        $this->end = $end;
                 }
                 else
                 {
@@ -84,6 +86,18 @@ class PB
                                 $pt = $pt->next;
                         }
                         $this->time = ($this->end->time - $this->start->time) * $this->distance / ($this->end->distance - $this->start->distance);
+                        $this->projected = 0;
+                }
+                $this->min_speed = $start->speed;
+                $this->max_speed = $start->speed;
+                $pt = $this->start;
+                while( $pt != $this->end->next )
+                {
+                    if($this->min_speed > $pt->speed )
+                        $this->min_speed = $pt->speed;
+                    elseif($this->max_speed < $pt->speed )
+                        $this->max_speed = $pt->speed;
+                    $pt = $pt->next;
                 }
         }
         function str()
@@ -107,6 +121,64 @@ class PB
         }
 }
 
+function addPiecesToDB( $outing_id, $pieces, $mysqli )
+{
+    foreach( $pieces as $p )
+    {
+        $query = "INSERT INTO Pieces ( outing_id, trackpoint_start, trackpoint_end, min_longitude, max_longitude, min_latitude, max_latitude, duration, distance, downstream ) VALUES ";
+        $query .= "( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        if( $stmt = $mysqli->prepare($query))
+        {
+                $stmt->bind_param( "ssssssssss", $outing_id, $p->start->id, $p->end->id, $p->min_longitude, $p->max_longitude, $p->min_latitude, $p->max_latitude, $p->duration, $p->distance, $p->downstream);
+                $stmt->execute();
+                $stmt->close();
+                $piece_id = $mysqli->insert_id;
+                $query = "INSERT INTO PBs(piece_id, distance, start_point, end_point, duration, projected, min_speed, max_speed) VALUES ";
+                $query_args_types = "";
+                $query_args = array();
+                $first = 1;
+                foreach($p->PBs as $pb)
+                {
+                    if($first)
+                    {
+                        $first = 0;
+                    }
+                    else
+                        $query .=", ";
+                    $query .= "(?, ?, ?, ?, ?, ?, ?, ?)";
+                    $query_args_types .= "ssssssss";
+                    $query_args []= $piece_id;
+                    $query_args []= $pb->distance;
+                    $query_args []= $pb->start->id;
+                    $query_args []= $pb->end->id;
+                    $query_args []= $pb->time;
+                    $query_args []= $pb->projected;
+                    $query_args []= $pb->min_speed;
+                    $query_args []= $pb->max_speed;
+
+                }
+                if( ! $first )
+                {
+                    if( $stmt = $mysqli->prepare($query))
+                    {
+                            $args = array();
+                            $args []= & $query_args_types;
+
+                            for( $i=0; $i < count($query_args); $i++)
+                            {
+                                    $args[]= & $query_args[$i];
+                            }
+                            call_user_func_array( array($stmt,'bind_param'), $args );
+                            $stmt->execute();
+                            $stmt->close();
+                    }
+                    else die("Statement failed: ". $mysqli->error . "<br>");
+                }
+        }
+        else die("Statement failed: ". $mysqli->error . "<br>");
+    }
+}
+
 class Piece
 {
         public $start = NULL;
@@ -114,12 +186,15 @@ class Piece
         public $duration = 0;
         public $distance = 0.0;
         public $PBs = array();
+        public $min_longitude;
+        public $max_longitude;
+        public $min_latitude;
+        public $max_latitude;
+        public $downstream = 1; /* FIXME ! */
         // TODO Read from database
         public $min_duration = 20.0;
-        // TODO Read from database
-        public $pb_distances = [ 50, 100, 200, 500, 900, 1000, 2000, 2900, 3000, 4000 ];
 
-        function process()
+        function process($pb_distances)
         {
                 //TODO: Adjust start
                 $this->duration = intval( $this->end->time - $this->start->time );
@@ -128,9 +203,32 @@ class Piece
                         return false;
                 }
                 $this->distance = intval($this->end->distance - $this->start->distance );
-                foreach( $this->pb_distances as $pb )
+                foreach( $pb_distances as $pb )
                 {
                         $this->PBs[]= new PB($this->start, $this->end, $pb);
+                }
+                $this->min_latitude = $this->start->latitude;
+                $this->max_latitude = $this->start->latitude;
+                $this->min_longitude = $this->start->longitude;
+                $this->max_longitude = $this->start->longitude;
+                $pt = $this->start;
+                while( $pt != $this->end->next )
+                {
+                    if( $pt->latitude < $this->min_latitude )
+                    {
+                        $this->min_latitude = $pt->latitude;
+                    }elseif( $pt->latitude > $this->max_latitude )
+                    {
+                        $this->max_latitude = $pt->latitude;
+                    }
+                    if( $pt->longitude < $this->min_longitude )
+                    {
+                        $this->min_longitude = $pt->longitude;
+                    }elseif( $pt->longitude > $this->max_longitude )
+                    {
+                        $this->max_longitude = $pt->longitude;
+                    }
+                    $pt = $pt->next;
                 }
                 return true;
         }
@@ -139,17 +237,6 @@ class Piece
                 $s = "";
                 $s .= "Start ". number_format(0.001 * $this->start->distance,2). " End ".number_format(0.001 * $this->end->distance, 2 )." km<br/>";
                 //$s .= $this->start->id." --> ".$this->end->id."<br/>";
-                /* TODO: Altitude doesn't work, remove it
-                if( $this->start->altitude > $this->end->altitude )
-                {
-                        $s .= "Going downstream";
-                }
-                else
-                {
-                        $s .= "Going upstream";
-                }
-                $s .= "Start ".$this->start->altitude." End : ". $this->end->altitude."<br/>";
-                 */
                 $s .= "Duration : ". timeStr($this->duration)." Length ".$this->distance." meters<br/>";
                 foreach($this->PBs as $pb)
                 {
@@ -159,60 +246,89 @@ class Piece
         }
 }
 
-$res = $mysqli->query("SELECT * from TrackPoints WHERE outing_id = 23");
-if(!$res)
-        die("ERROR : ".$mysqli->error."<br/>");
-//$res = $mysqli->query($_POST['query']);
-
-$points = array();
-$prev = NULL;
-while ($row = $res->fetch_array(MYSQLI_ASSOC)) 
+function getCrewInfo( $crew_id, $mysqli )
 {
-        $point = new Point( $prev, $row["distance"], $row["date"], $row["time"], $row["speed"], $row["id"]);
-        $points[] = $point;
-        $prev = $point;
-}
-echo count($points)."<br/>";
-$pieces = array();
-$piece = NULL;
-$stop = NULL;
-foreach( $points as $p )
-{
-        if( ! $piece ) // Not currently doing a piece
-        {
-                if( $p->speed > $start_speed ) // Are we going fast enough to start a piece ?
-                {
-                        $piece = new Piece();
-                        $piece->start = $p;
-                }
-        }
-        else // Doing a piece
-        {
-                if( $p->speed < $stop_speed ) // Is it the end of the piece ?
-                {
-                        if( !$stop )
-                        {
-                                $stop = $p;
-                        }
-                        else
-                        {
-                                $piece->end = $stop;
-                                if( $piece->process() )
-                                {
-                                        $pieces[]= $piece;
-                                }
-                                $piece = NULL;
-                        }
-                }
-                else
-                {
-                        $stop = NULL;
-                }
-        }
+        $res = $mysqli->query("SELECT * from Crews WHERE id = ".$crew_id);
+        return $res->fetch_array(MYSQLI_ASSOC);
 }
 
-foreach( $pieces as $p )
+function getPBDistances( $mysqli )
 {
-        echo $p->str()."<br/>";
+    $distances = array();
+    $res = $mysqli->query("SELECT * from PBDistances");
+    if(!$res)
+            die("ERROR : ".$mysqli->error."<br/>");
+
+    while ($row = $res->fetch_array(MYSQLI_ASSOC)) 
+    {
+        $distances []= $row['distance'];
+    }
+    return $distances;
+}
+
+function generate_pbs( $outing_id, $crew_id, $mysqli )
+{
+    $pb_distances = getPBDistances( $mysqli );
+    $crew = getCrewInfo( $crew_id, $mysqli );
+
+    $res = $mysqli->query("SELECT * from TrackPoints WHERE outing_id = ".$outing_id);
+    if(!$res)
+            die("ERROR : ".$mysqli->error."<br/>");
+    //$res = $mysqli->query($_POST['query']);
+
+    $points = array();
+    $prev = NULL;
+    while ($row = $res->fetch_array(MYSQLI_ASSOC)) 
+    {
+            $point = new Point( $prev, $row["distance"], $row["date"], $row["time"], $row["speed"], $row["id"], $row["longitude"], $row["latitude"]);
+            $points[] = $point;
+            $prev = $point;
+    }
+    //echo count($points)."<br/>";
+    $pieces = array();
+    $piece = NULL;
+    $stop = NULL;
+    foreach( $points as $p )
+    {
+            if( ! $piece ) // Not currently doing a piece
+            {
+                    if( $p->speed > floatval($crew['start_threshold'])) // Are we going fast enough to start a piece ?
+                    {
+                            $piece = new Piece();
+                            $piece->start = $p;
+                    }
+            }
+            else // Doing a piece
+            {
+                    if( $p->speed < floatval($crew['end_threshold'])) // Is it the end of the piece ?
+                    {
+                            if( !$stop )
+                            {
+                                    $stop = $p;
+                            }
+                            else
+                            {
+                                    $piece->end = $stop;
+                                    if( $piece->process($pb_distances) )
+                                    {
+                                            $pieces[]= $piece;
+                                    }
+                                    $piece = NULL;
+                            }
+                    }
+                    else
+                    {
+                            $stop = NULL;
+                    }
+            }
+    }
+    addPiecesToDB( $outing_id, $pieces, $mysqli );
+
+ /*   foreach( $pieces as $p )
+    {
+            echo $p->str()."<br/>";
+    }
+  */
+    header("Location: rowing_stats.html");
 }
 ?>

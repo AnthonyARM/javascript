@@ -18,6 +18,7 @@ $target_file= $target_dir . basename( $filename );
 $uploader = $_POST['UploaderSelect'];
 
 include('db_connection.php');
+include('generate_pbs.php');
 
 function getBoatInfo( $boat_id, $mysqli )
 {
@@ -37,6 +38,7 @@ function createOutingRecord( $mysqli, $date )
 
         $boat = getBoatInfo( $tmp_boat[2], $mysqli);
         $values['boat_id'] = $boat['id'];
+        $values['crew_id'] = $_POST['crewSelect'];
         $title = $_POST['title'];
         $location = $_POST['location'];
 
@@ -92,76 +94,74 @@ function getNodeText( $node, $name )
 }
 function getNode( $node, $name )
 {
-	return $node->getElementsByTagName( $name )->item(0);
+    return $node->getElementsByTagName( $name )->item(0);
 }
 
-/*
+/* FIXME: Re-enable once testing is over 
 if (file_exists($target_file))
 {
-	die("Sorry, file '". basename($filename)."' already exists.<br/>");
+    die("Sorry, file '". basename($filename)."' already exists.<br/>");
 }
 else
 */
 {
-	if (move_uploaded_file($tmp_filename, $target_file))
-	{
-		echo "The file ". basename( $filename ). " has been uploaded.<br/>";
-		$dom = new DOMDocument();
-		$dom->load( $target_file); 
+    if (move_uploaded_file($tmp_filename, $target_file))
+    {
+        echo "The file ". basename( $filename ). " has been uploaded.<br/>";
+        $dom = new DOMDocument();
+        $dom->load( $target_file); 
                 $date = getNodeText($dom, "Id");
 
                 $outing_id = createOutingRecord( $mysqli, $date );
 
-		$points = $dom->getElementsByTagName("Trackpoint");
+        $points = $dom->getElementsByTagName("Trackpoint");
                 $start_time = 0.0;
                 $first =1;
                 $prev_time = 0.0;
-                $query = "INSERT INTO TrackPoints ( outing_id, longitude, latitude, distance, date, time, speed, altitude) VALUES ";
+                $query = "INSERT INTO TrackPoints ( outing_id, longitude, latitude, distance, date, time, speed) VALUES ";
                 $query_args_types = "";
                 $query_args = array();
                 $hr_values = array();
-		foreach( $points as $pt )
-		{
-                        $time = 0.0;
-                        $speed = 0.0;
-			$dateStr =  getNodeText($pt, "Time" );
-			$pos = getNode( $pt, "Position");
-                        if( $pos )
-                        {
-                                $latStr = getNodeText( $pos, "LatitudeDegrees" );
-                                $lonStr = getNodeText( $pos, "LongitudeDegrees" );
-                        }
-			$distance = getNodeText( $pt, "DistanceMeters");
-			$altitude = getNodeText( $pt, "AltitudeMeters");
-			$hr = getNode( $pt, "HeartRateBpm");
-			$hrStr = "";
-			if( $hr )
-			{
-				$hrStr = getNodeText( $hr, "Value");
-			}
+        foreach( $points as $pt )
+        {
+            $time = 0.0;
+            $speed = 0.0;
+            $dateStr =  getNodeText($pt, "Time" );
+            $pos = getNode( $pt, "Position");
+            if( $pos )
+            {
+                    $latStr = getNodeText( $pos, "LatitudeDegrees" );
+                    $lonStr = getNodeText( $pos, "LongitudeDegrees" );
+            }
+            $distance = getNodeText( $pt, "DistanceMeters");
+            $hr = getNode( $pt, "HeartRateBpm");
+            $hrStr = "";
+            if( $hr )
+            {
+                $hrStr = getNodeText( $hr, "Value");
+            }
                         $hr_values[] = $hrStr;
                         if( $first )
                         {
                                 $start_time = strtotime($dateStr);
                                 $first = 0;
-                                $query .= "($outing_id, ?, ?, ?, ?, $time, $speed, ?)";
+                                $query .= "($outing_id, ?, ?, ?, ?, $time, $speed)";
                         }
                         else
                         {
                                 $time = strtotime($dateStr) - $start_time;
                                 $speed = ( $distance - $prev_distance ) / ($time - $prev_time);
-                                $query .= ", ($outing_id, ?, ?, ?, ?, $time, $speed, ?)";
+                                $query .= ", ($outing_id, ?, ?, ?, ?, $time, $speed)";
                         }
-                        $query_args_types .= "sssss";
+                        $query_args_types .= "ssss";
                         $query_args []= $lonStr;
                         $query_args []= $latStr;
                         $query_args []= $distance;
                         $query_args []= $dateStr;
-                        $query_args []= $altitude;
 
                         $prev_time = $time;
                         $prev_distance = $distance;
-		}
+        }
                 if( $stmt = $mysqli->prepare($query))
                 {
                         $args = array();
@@ -209,18 +209,18 @@ else
                                 call_user_func_array( array($stmt,'bind_param'), $args );
                                 $stmt->execute();
                                 $stmt->close();
+                                generate_pbs($outing_id, $_POST['crewSelect'], $mysqli);
                         }
                         else die("Statement failed: ". $mysqli->error . "<br>");
                 }
                 else die("Statement failed: ". $mysqli->error . "<br>");
-
-	}
-	else
-	{
-		die("Sorry, there was an error uploading your file '".basename($filename)."'<br/>");
-	}
+    }
+    else
+    {
+        die("Sorry, there was an error uploading your file '".basename($filename)."'<br/>");
+    }
 }
 $time_post = microtime(true);
 $exec_time = $time_post - $time_pre;
-echo "<br/>$exec_time<br/>";
+//echo "<br/>$exec_time<br/>";
 ?>

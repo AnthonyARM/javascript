@@ -6,12 +6,6 @@ define({
                     "dijit/form/Button", "dojox/layout/TableContainer", "dijit/form/TextBox", "dijit/form/CheckBox", "dojo/domReady!"],
                 function(ajax, Memory, on, Form, MultiSelect, FilteringSelect, ContentPane, win, Uploader, Button, TableContainer, TextBox, CheckBox){
                         // create the BorderContainer and attach it to our appLayout div
-                /*
-                        main.addChild( new Button ( { label: "Upload", onClick: function() { console.log("First button was clicked");
-                                                }}));
-                        main.addChild( new Button ( { label: "Second", onClick: function() { console.log("Second button was clicked");
-                                                }}));
-                       */
 
                 var form = new Form( { action: "add_outing.php", method:"post", encType:"multipart/form-data"});
                 var table = new TableContainer( { cols: 2, showLabels:false } );
@@ -59,6 +53,20 @@ define({
                 boat.startup();
                 table.addChild( boat );
 
+                var crewsStore = new Memory();
+                ajax.get_crews( function( crews )
+                {
+                        for( var b of crews )
+                        {
+                                crewsStore.put( { id: b.id, name: b.name} );
+                        }
+                });
+                var showCrew = false;
+                var crewSelect = new FilteringSelect( {store:crewsStore, style:"display:none", name:"crewSelect", id:"crewSelect" } );
+                var crewLabel = new ContentPane({content:"Crew :", style:"display:none"});
+                table.addChild( crewLabel );
+                table.addChild( crewSelect );
+
                 var rowersStore = new Memory();
                 ajax.get_rowers( function( rowers )
                 {
@@ -93,11 +101,13 @@ define({
                                 people[7].show = num_rowers >= 4;
                                 people[8].show = num_rowers >= 4;
                                 people[9].show = num_rowers > 1;
-                                console.log("1 = "+people[1].show);
+
+                                showCrew = num_rowers > 1;
+                                crewSelect.set("style","display:"+ (showCrew ? "block" : "none"));
+                                crewLabel.set("style","display:"+ (showCrew ? "block" : "none"));
 
                                 for( p of people )
                                 {
-                                        console.log("Name "+p.name+" show "+p.show);
                                         peopleNodes[p.name].label.set("style","display:" + (p.show ? "block" : "none"));
                                         peopleNodes[p.name].select.set("style","display:" +(p.show ? "block" : "none"));
                                         //peopleNodes[p.name].select.set("required", p.show ? "true" : "false" );
@@ -132,6 +142,9 @@ define({
                                 if( loc.value == "")
                                         errors += "Please enter a Location for the outing<br/>";
 
+                                if( showCrew && crewSelect.value == "" )
+                                    errors += "Please select a crew<br/>";
+
                                 for( p of people )
                                 {
                                         if( p.show  && peopleNodes[p.name].select.value == "" && p.name != "Coach")
@@ -148,7 +161,6 @@ define({
                                 console.log( "Title: "+title.value);
                                 console.log( "Uploader: "+peopleNodes["Uploader"].select.value);
                                 errorsPane.set("content",errors)
-                                //alert( errors );
 
                                 return errors == "";
                                 });
