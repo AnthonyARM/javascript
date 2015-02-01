@@ -19,7 +19,8 @@ function execute_select_query( cb, params )
                                         }
                                         else
                                         {
-                                                cb( json.parse( response, true ));
+                                            //console.log("response : "+response);
+                                            cb( json.parse( response, true ));
                                         }
                                 }
                         });
@@ -46,6 +47,15 @@ function execute_insert_query( cb, params )
 }
 
 define({
+            get_pbs: function( piece_id, cb ) {
+                execute_select_query(cb, { query: "get_pbs", piece_id: piece_id});
+            },
+            get_pieces: function( outing_id, cb ) {
+                execute_select_query(cb, { query: "get_pieces", outing_id: outing_id });
+            },
+            get_outings: function( cb ) {
+                execute_select_query(cb, { query: "get_outings" });
+            },
             get_boats: function ( cb ) {
                     execute_select_query(cb, { query: "get_boats" });
             },

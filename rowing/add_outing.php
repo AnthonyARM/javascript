@@ -209,7 +209,7 @@ else
                                 call_user_func_array( array($stmt,'bind_param'), $args );
                                 $stmt->execute();
                                 $stmt->close();
-                                generate_pbs($outing_id, $_POST['crewSelect'], $mysqli);
+                                generate_pbs($outing_id, $_POST['crewSelect'], $mysqli, $_POST['flowDirection']);
                         }
                         else die("Statement failed: ". $mysqli->error . "<br>");
                 }

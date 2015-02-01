@@ -1,5 +1,13 @@
 <?php
 
+/* Clean up:
+DELETE FROM `Outings` WHERE 1;
+DELETE FROM `PBs` WHERE 1;
+DELETE FROM `TrackPoints` WHERE 1;
+DELETE FROM `PersonalTrackPoints` WHERE 1;
+DELETE FROM `Pieces` WHERE 1;
+ */
+
 function timeStr( $time )
 {
         $minutes = intval($time / 60.0);
@@ -190,11 +198,11 @@ class Piece
         public $max_longitude;
         public $min_latitude;
         public $max_latitude;
-        public $downstream = 1; /* FIXME ! */
+        public $downstream = 1;
         // TODO Read from database
         public $min_duration = 20.0;
 
-        function process($pb_distances)
+        function process($pb_distances, $longitude_coeff, $latitude_coeff)
         {
                 //TODO: Adjust start
                 $this->duration = intval( $this->end->time - $this->start->time );
@@ -230,6 +238,7 @@ class Piece
                     }
                     $pt = $pt->next;
                 }
+                $this->downstream = 0 < (($this->end->latitude - $this->start->latitude) * $latitude_coeff + ($this->end->longitude - $this->start->longitude)* $longitude_coeff);
                 return true;
         }
         function str()
@@ -238,6 +247,7 @@ class Piece
                 $s .= "Start ". number_format(0.001 * $this->start->distance,2). " End ".number_format(0.001 * $this->end->distance, 2 )." km<br/>";
                 //$s .= $this->start->id." --> ".$this->end->id."<br/>";
                 $s .= "Duration : ". timeStr($this->duration)." Length ".$this->distance." meters<br/>";
+                $s .= "Downstream = ".$this->downstream." Delta lat : ". ($this->end->latitude - $this->start->latitude)." long: ".($this->end->longitude - $this->start->longitude)."<br/>";
                 foreach($this->PBs as $pb)
                 {
                         $s .= $pb->str()."<br/>";
@@ -266,10 +276,16 @@ function getPBDistances( $mysqli )
     return $distances;
 }
 
-function generate_pbs( $outing_id, $crew_id, $mysqli )
+function generate_pbs( $outing_id, $crew_id, $mysqli, $flow_direction )
 {
     $pb_distances = getPBDistances( $mysqli );
     $crew = getCrewInfo( $crew_id, $mysqli );
+    $tmp_dir = explode(",", $flow_direction );
+    if( count($tmp_dir) < 2 )
+    {
+        die("ERROR: flowDirection is invalid<br/>");
+        return;
+    }
 
     $res = $mysqli->query("SELECT * from TrackPoints WHERE outing_id = ".$outing_id);
     if(!$res)
@@ -309,7 +325,7 @@ function generate_pbs( $outing_id, $crew_id, $mysqli )
                             else
                             {
                                     $piece->end = $stop;
-                                    if( $piece->process($pb_distances) )
+                                    if( $piece->process($pb_distances, $tmp_dir[0], $tmp_dir[1]) )
                                     {
                                             $pieces[]= $piece;
                                     }
@@ -324,11 +340,12 @@ function generate_pbs( $outing_id, $crew_id, $mysqli )
     }
     addPiecesToDB( $outing_id, $pieces, $mysqli );
 
- /*   foreach( $pieces as $p )
+    foreach( $pieces as $p )
     {
             echo $p->str()."<br/>";
     }
-  */
-    header("Location: rowing_stats.html");
+
+    //FIXME: Re-enable once testing is finished
+  // header("Location: rowing_stats.html");
 }
 ?>

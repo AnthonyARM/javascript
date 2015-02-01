@@ -19,6 +19,32 @@ define({
                 table.addChild( loc );
                 table.addChild( new ContentPane({content: "Boat:"}));
                 var boat = new MultiSelect({ multiple : "false", name: "boat"});
+
+                var directions = [ 
+                    { name : 'North', value:"1,0", selected: false},
+                    { name : 'North East', value:"1,1", selected: true },
+                    { name : 'East', value:"0,1", selected: false},
+                    { name : 'South East', value:"-1,1", selected: false},
+                    { name : 'South', value:"-1,0", selected: false},
+                    { name : 'South West', value:"-1,-1", selected: false},
+                    { name : 'West', value:"0,-1", selected: false},
+                    { name : 'North West', value:"1,-1", selected: false}
+                ]
+                var directionSelect= new MultiSelect({ multiple : "false", name: "flowDirection", style:"display:none"});
+                for( var d of directions )
+                {
+                        var opt = win.doc.createElement('option');
+                        opt.innerHTML = d.name;
+                        opt.value = d.value;
+                        if(d.selected)
+                        {
+                                opt.selected = "selected";
+                        }
+                        directionSelect.containerNode.appendChild(opt);
+
+                }
+                directionSelect.startup();
+
                 ajax.get_boats( function( boats )
                 {
                         var first = true;
@@ -61,6 +87,12 @@ define({
                                 crewsStore.put( { id: b.id, name: b.name} );
                         }
                 });
+
+                var showDirection = false;
+                var directionLabel = new ContentPane({content:"Flow direction:", style:"display:none"});
+                table.addChild( directionLabel );
+                table.addChild( directionSelect );
+
                 var showCrew = false;
                 var crewSelect = new FilteringSelect( {store:crewsStore, style:"display:none", name:"crewSelect", id:"crewSelect" } );
                 var crewLabel = new ContentPane({content:"Crew :", style:"display:none"});
@@ -102,6 +134,9 @@ define({
                                 people[8].show = num_rowers >= 4;
                                 people[9].show = num_rowers > 1;
 
+                                showDirection= val[2] != 1; // id = 1 is the erg !
+                                directionSelect.set("style","display:"+ (showDirection ? "block" : "none"));
+                                directionLabel.set("style","display:"+ (showDirection ? "block" : "none"));
                                 showCrew = num_rowers > 1;
                                 crewSelect.set("style","display:"+ (showCrew ? "block" : "none"));
                                 crewLabel.set("style","display:"+ (showCrew ? "block" : "none"));

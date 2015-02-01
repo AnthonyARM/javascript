@@ -5,43 +5,143 @@ define( {
                           "dojox/geo/openlayers/GeometryFeature", "dojox/geo/openlayers/Point","dojo/_base/window","dojox/geo/openlayers/Collection",
                           "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", 
                           "dojo/_base/Color","dijit/form/MultiSelect", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form", 
-                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url" ],
+                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid' ],
                      function(ajax, utils, ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
-                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url){
+                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid){
 
                 ready(function(){
-                // create a map widget.
-                var main_table = new TableContainer( { cols: 1, showLabels: false, style:'height:100%;'} );
+
+            function MyGrid(name, layout, main)
+            {
+                this.name = name;
+                this.store = new ItemFileWriteStore( { data: { identifier: 'id', items:[]} });
+                this.layout = layout;
+                this.grid = new DataGrid({
+                            id: name+'_grid',
+                            selectionMode: "single",
+                            store: this.store,
+                            structure: this.layout,
+                            style:"height:10em;"});
+               main.addChild(this.grid);
+            }
+
+            MyGrid.prototype.clear_store = function()
+            {
+                this.store = new ItemFileWriteStore( { data: { identifier: 'id', items:[]} });
+                this.grid.setStore( this.store );
+            }
+
+            MyGrid.prototype.show = function( display )
+            {
+                this.grid.set("style","display: "+ (display ? "block" : "none"));
+            } 
+
+            function SelectionGrids(main)
+            {
+               var t = this;
+               var table = new TableContainer( { cols: 2, showLabels: false} );
+               t.outings = new MyGrid("outings",[[
+                  {'name': 'Id', 'field': 'id', hidden: true},
+                  {'name': 'Date', 'field': 'date', 'width': '140px', editable: false},
+                  {'name': 'Title', 'field': 'title', 'width': '140px', editable: false},
+                  {'name': 'Crew', 'field': 'crew', 'width': '200px', editable: false},
+                  {'name': 'Boat', 'field': 'boat', 'width': '200px', editable: false},
+                ]],table);
+               t.outings.grid.set('colspan','2');
+
+               t.pieces = new MyGrid("pieces", [[
+                  {'name': 'Id', 'field': 'id', hidden: true},
+                  {'name': 'Downstream','field':'downstream', 'width':'100px'},
+                  {'name': 'Start (km)','field':'start', 'width':'100px'},
+                  {'name': 'End (km)','field':'end', 'width':'100px'},
+                  {'name': 'Length (m)','field':'distance', 'width':'100px'},
+                  {'name': 'Duration','field':'fmt_duration', 'width':'100px'},
+                ]],table);
+               t.pieces.show( false );
+
+               /* FIXME: start / end relative to piece start */
+               t.PBs= new MyGrid("PBs", [[
+                  {'name': 'Id', 'field': 'id', hidden: true},
+                  {'name': 'Distance (m)','field':'distance', 'width':'100px'},
+                  {'name': 'Projected','field':'projected', 'width':'100px'},
+                  {'name': 'Start (km)','field':'start', 'width':'100px'},
+                  {'name': 'End (km)','field':'end', 'width':'100px'},
+                  {'name': 'Duration','field':'fmt_duration', 'width':'100px'},
+                  {'name': 'Min speed (kph)','field':'min_speed', 'width':'100px'},
+                  {'name': 'Max speed (kph)','field':'max_speed', 'width':'100px'},
+                ]],table);
+               t.PBs.show( false );
+
+               /*
+                    id
+                    piece_id
+                    distance
+                    start_point
+                    end_point
+                    duration
+                    projected
+                    min_speed
+                    max_speed
+                    */
+
+               main.addChild(table);
+
+               ajax.get_outings( function(list){ 
+                   for( outing of list){
+                       t.outings.store.newItem(outing);
+                   }
+               });
+
+               on( t.outings.grid, 'Selected', function(idx) {
+                    var outing = t.outings.grid.selection.getSelected()[0];
+                    ajax.get_pieces( outing.id, function( list ){
+                       t.PBs.show( false );
+                       t.pieces.clear_store();
+                        for( p of list ){
+                            t.pieces.store.newItem(p);
+                        }
+                       t.pieces.show( true );
+                    });
+                });
+               on( t.pieces.grid, 'Selected', function(idx) {
+                    var piece = t.pieces.grid.selection.getSelected()[0];
+                    ajax.get_pbs( piece.id, function( list ){
+                        t.PBs.clear_store();
+                        for( p of list ){
+                            t.PBs.store.newItem(p);
+                        }
+                       t.PBs.show( true );
+                    });
+                });
                 /*
-                var type_select = new Select( { options : [ 
-                        { label : 'Recent outings' , value:'recent', selected: true}, 
-                        { label : 'Personal Bests' , value:'pbs'} ] } );
-                if( url.get("type_select") )
-                {
-                       //Check it's a valid option:
-                       for( opt of type_select.options )
-                       {
-                                if( opt.value == url.get("type_select") )
-                                {
-                                        type_select.set('value', url.get("type_select"));
-                                        break;
-                                }
-                       }
-                }
-                if( type_select.value != url.get("type_select") )
-                {
-                        url.set("type_select", type_select.value);
-                }
+                    id
+                    outing_id
+                    trackpoint_start
+                    trackpoint_end
+                    min_longitude
+                    max_longitude
+                    min_latitude
+                    max_latitude
+                    duration
+                    distance
+                    downstream
+                    */
+            }
 
-                type_select.on("change", function(new_value) { 
-                        url.set("type_select", new_value);
-                        } );
-                        */
-
-
+            function MyMap(main){
                 var map_container = new ContentPane( { style:'height:100%;' });
+                main.addChild( map_container );
+                this.map = new Map(map_container.containerNode);
+                // create a GfxLayer
+                this.layer = new GfxLayer();
+                // add layer to the map
+                this.map.addLayer(this.layer);
+            }
+
+            function MyFilters(main)
+            {
+                var main_table = new TableContainer( { cols: 1, showLabels: false} );
                 var menu_table = new TableContainer( { cols: 3, showLabels: false, style:'width:400px;white-space:nowrap;'} );
-                var outings_table = new TableContainer( { cols: 2, showLabels: true} );
                 var selection_table = new TableContainer( { cols: 1, showLabels: false} );
                 var recent_selected = new RadioButton( { checked: true, value : "recent", name: "view_selection" });
                 var pbs_selected = new RadioButton( { checked: false, value : "pbs", name: "view_selection" });
@@ -49,9 +149,6 @@ define( {
                 selection_table.addChild( recent_selected );
                 selection_table.addChild( pbs_selected );
                 main_table.addChild( menu_table );
-                main_table.addChild( outings_table );
-
-                //TODO: Add DataGrid to outings_table with selectionMode=single
 
                 var pbs_categories = new Select ({ options : [
                         { label : 'Per crew', value:'pb_crew', selected : true },
@@ -59,15 +156,14 @@ define( {
                         ], style: "display: none" } );
 
                 var crews = new MultiSelect( { multiple : "true", name: "crews", style: "display:" + (url.get("filter_crew") ? "block" : "none") } );
-                //FIXME: Should be get_crews()
-                ajax.get_boats( function( boats )
+                ajax.get_crews( function( crew_list )
                 {
                         var first = true;
-                        for( var b of boats )
+                        for( var b of crew_list )
                         {
                                 var opt = win.doc.createElement('option');
                                 opt.innerHTML = b.name;
-                                opt.value = b.num_rowers +","+ b.cox+","+b.id;
+                                opt.value = "bla "+b.id;
                                 if(first)
                                 {
                                         opt.selected = "selected";
@@ -120,7 +216,6 @@ define( {
                                 } });
 
                 menu_table.addChild( filter_boat );
-
                 menu_table.addChild( selection_table );
                 menu_table.addChild( crews );
                 menu_table.addChild( boats );
@@ -136,55 +231,54 @@ define( {
                 create_label( filter_boat, "Filter by boat");
                 create_label( recent_selected, "Recent outings");
                 create_label( pbs_selected, "Personal Bests");
-                main_table.addChild( map_container );
+            }
+            // create a map widget.
+            /*
+            var type_select = new Select( { options : [ 
+                    { label : 'Recent outings' , value:'recent', selected: true}, 
+                    { label : 'Personal Bests' , value:'pbs'} ] } );
+            if( url.get("type_select") )
+            {
+                   //Check it's a valid option:
+                   for( opt of type_select.options )
+                   {
+                            if( opt.value == url.get("type_select") )
+                            {
+                                    type_select.set('value', url.get("type_select"));
+                                    break;
+                            }
+                   }
+            }
+            if( type_select.value != url.get("type_select") )
+            {
+                    url.set("type_select", type_select.value);
+            }
 
-                    var map = new Map(map_container.containerNode);
-                   // This is New York
-                    var ny = {
-                      latitude : 40.71427,
-                      longitude : -74.00597
-                    };
-                    // create a GfxLayer
-                    var layer = new GfxLayer();
-                    // add layer to the map
-                    map.addLayer(layer);
-                    // fit to New York with 0.1 degrees extent
+            type_select.on("change", function(new_value) { 
+                    url.set("type_select", new_value);
+                    } );
+                    */
 
-                        var localXY = function(p){
-                                var x = p.x;
-                                var y = p.y;
-                                var layer = map.olMap.baseLayer;
-                                var resolution = map.olMap.getResolution();
-                                var extent = layer.getExtent();
-                                console.log(extent);
-                                var rx = (x / resolution + (-extent.left / resolution));
-                                var ry = ((extent.top / resolution) - y / resolution);
-                                return [rx, ry];
-                        };
 
-                ajax.get_trackpoints( 12492, 12522, function( pts )
+            var filters = new MyFilters(main);
+            var selectionGrids = new SelectionGrids(main);
+            var map = new MyMap(main);
+
+            on( selectionGrids.PBs.grid, "Selected", function(idx){
+                var pb = selectionGrids.PBs.grid.selection.getSelected()[0];
+                console.log("Selected ! "+pb.max_latitude);
+                ajax.get_trackpoints( pb.start_point, pb.end_point, function( pts )
                 {
-                        var min = { latitude : parseFloat(pts[0].latitude), longitude : parseFloat(pts[0].longitude) } ;
-                        var max = { latitude : parseFloat(pts[0].latitude), longitude : parseFloat(pts[0].longitude) } ;
-                        var min_speed = 3.77777;
-                        var max_speed = 4.1994;
+                        var min_speed = pb.min_speed / 3.6; /* has to be m/s not kph */
+                        var diff_speed = (pb.max_speed - pb.min_speed)/ 3.6;
                         var prev = null;
-                        var mins = 100;
-                        var maxs = 0;
+                        map.layer.clear();
                         arr.forEach( pts, function(p)
                         {
                                 var latitude = parseFloat( p.latitude );
                                 var longitude = parseFloat( p.longitude );
                                 var speed = parseFloat( p.speed );
-                                if( latitude > max.latitude ) max.latitude = latitude ;
-                                else if( latitude < min.latitude ) min.latitude = latitude ;
-                                if( longitude > max.longitude ) max.longitude = longitude ;
-                                else if( longitude < min.longitude ) min.longitude = longitude ;
-                                //FIXME Remove this
-                                if( speed > maxs ) maxs = speed;
-                                else if( speed < mins) mins = speed;
-
-                                var ratio = (p.speed - min_speed ) / (max_speed - min_speed );
+                                var ratio = (p.speed - min_speed ) / diff_speed;
                                 var colour = Color.blendColors( Color.fromArray([255,0,0]), Color.fromArray([0,255,0]), ratio);
                                 //console.log(colour+" Ratio : "+ratio);
 
@@ -203,7 +297,7 @@ define( {
                                                 var line = new LineString( [{x:start.longitude,y:start.latitude},{x:new_pt.longitude,y:new_pt.latitude}]);
                                                 var f = new GeometryFeature(line);
                                                 f.setStroke({color: start.colour, width: 3});
-                                                layer.addFeature(f);
+                                                map.layer.addFeature(f);
                                                 start = new_pt;
                                         }
 
@@ -211,7 +305,7 @@ define( {
 
                                 prev = { longitude: longitude, latitude:latitude, colour: colour};
 
-                                var pt = new Point( {x:longitude,y:latitude} );
+                            var pt = new Point( {x:longitude,y:latitude} );
                             var f = new GeometryFeature(pt);
                             var size = 2;
                             // set the shape properties, fill and stroke
@@ -222,7 +316,7 @@ define( {
                             });
                             pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, dist: "+(p.distance / 1000).toFixed(2)+" km, time: "+ utils.time_to_str(p.time);
                             // add the feature to the layer
-                            layer.addFeature(f);
+                            map.layer.addFeature(f);
                             f.getShape();
                              pt.shape.connect("onmouseover",function(evt){
                                              //evt.relatedTarget
@@ -233,13 +327,23 @@ define( {
                                              Tooltip.hide(pt.shape);
                                                         });
                         });
-                        console.log("Min speed : "+mins+" Max speed : "+ maxs);
-                        console.log(min.latitude+" , "+min.longitude+" / "+max.latitude+" , "+max.longitude);
-                    map.fitTo({
-                    bounds :[ min.longitude,min.latitude,max.longitude,max.latitude ]
+                    var diff_longitude = pb.max_longitude - pb.min_longitude;
+                    var diff_latitude = pb.max_latitude - pb.min_latitude;
+                    var scale = diff_longitude > diff_latitude ? diff_longitude : diff_latitude ;
+                    var bounds =[ parseFloat(pb.min_longitude) + 0.5 * diff_longitude, parseFloat(pb.min_latitude) + 0.5 * diff_latitude ];
+                    console.log("Bounds "+bounds);
+                    scale =0.1;
+                    console.log("diff long :"+diff_longitude+" diff lat :" +diff_latitude+" scale : "+scale);
+                    map.map.fitTo({
+                    bounds :[ parseFloat(pb.min_longitude),parseFloat(pb.min_latitude),parseFloat(pb.max_longitude),parseFloat(pb.max_latitude) ]
                     });
+                    map.layer.redraw();
+                    console.log(" long [ "+pb.min_longitude+" , "+pb.max_longitude+" ] lat ["+pb.min_latitude+" , "+pb.max_latitude+" ] ");
 
                 });
+                });
+
+
             });
             });
         }
