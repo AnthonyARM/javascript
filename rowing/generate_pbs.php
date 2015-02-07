@@ -96,8 +96,8 @@ class PB
                         $this->time = ($this->end->time - $this->start->time) * $this->distance / ($this->end->distance - $this->start->distance);
                         $this->projected = 0;
                 }
-                $this->min_speed = $start->speed;
-                $this->max_speed = $start->speed;
+                $this->min_speed = $this->start->speed;
+                $this->max_speed = $this->start->speed;
                 $pt = $this->start;
                 while( $pt != $this->end->next )
                 {
@@ -340,12 +340,12 @@ function generate_pbs( $outing_id, $crew_id, $mysqli, $flow_direction )
     }
     addPiecesToDB( $outing_id, $pieces, $mysqli );
 
+    /*
     foreach( $pieces as $p )
     {
             echo $p->str()."<br/>";
     }
-
-    //FIXME: Re-enable once testing is finished
-  // header("Location: rowing_stats.html");
+    */
+   header("Location: rowing_stats.html");
 }
 ?>

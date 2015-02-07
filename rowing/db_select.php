@@ -12,11 +12,15 @@ $requests = array (
     INNER JOIN TrackPoints starts ON starts.id=Pieces.trackpoint_start
     INNER JOIN TrackPoints ends ON ends.id=Pieces.trackpoint_end
     WHERE Pieces.outing_id=".$_POST['outing_id'];},
-    "get_pbs" => function() { return "SELECT PBs.*, pieces.min_latitude, pieces.max_latitude, pieces.min_longitude, pieces.max_longitude, SEC_TO_TIME(PBs.duration) as fmt_duration, TRUNCATE(starts.distance/1000,3) as start, TRUNCATE(ends.distance/1000,3) as end FROM PBs
+    "get_pbs" => function() { return "SELECT PBs.*, pieces.min_latitude, pieces.max_latitude, pieces.min_longitude, 
+    pieces.max_longitude, SEC_TO_TIME(PBs.duration) as fmt_duration, 
+    TRUNCATE((starts.distance - piece_start.distance),0) as start, 
+    TRUNCATE((ends.distance - piece_start.distance),0) as end FROM PBs
     INNER JOIN TrackPoints starts ON starts.id=PBs.start_point
     INNER JOIN TrackPoints ends ON ends.id=PBs.end_point
     INNER JOIN Pieces pieces ON pieces.id=PBs.piece_id
-    WHERE PBs.piece_id=".$_POST['piece_id'];},
+    INNER JOIN TrackPoints piece_start ON pieces.trackpoint_start=piece_start.id
+        WHERE PBs.piece_id=".$_POST['piece_id'];},
 
 );
 

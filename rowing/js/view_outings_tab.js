@@ -59,13 +59,12 @@ define( {
                 ]],table);
                t.pieces.show( false );
 
-               /* FIXME: start / end relative to piece start */
                t.PBs= new MyGrid("PBs", [[
                   {'name': 'Id', 'field': 'id', hidden: true},
                   {'name': 'Distance (m)','field':'distance', 'width':'100px'},
                   {'name': 'Projected','field':'projected', 'width':'100px'},
-                  {'name': 'Start (km)','field':'start', 'width':'100px'},
-                  {'name': 'End (km)','field':'end', 'width':'100px'},
+                  {'name': 'Start (m)','field':'start', 'width':'100px'},
+                  {'name': 'End (m)','field':'end', 'width':'100px'},
                   {'name': 'Duration','field':'fmt_duration', 'width':'100px'},
                   {'name': 'Min speed (kph)','field':'min_speed', 'width':'100px'},
                   {'name': 'Max speed (kph)','field':'max_speed', 'width':'100px'},
@@ -100,6 +99,7 @@ define( {
                         for( p of list ){
                             t.pieces.store.newItem(p);
                         }
+                       t.pieces.grid.selection.clear();
                        t.pieces.show( true );
                     });
                 });
@@ -110,7 +110,8 @@ define( {
                         for( p of list ){
                             t.PBs.store.newItem(p);
                         }
-                       t.PBs.show( true );
+                        t.PBs.grid.selection.clear();
+                        t.PBs.show( true );
                     });
                 });
                 /*
@@ -188,7 +189,7 @@ define( {
                         if( boat_selected ) 
                         {
                                 first = false;
-                                console.log(boat_selected);
+                                //console.log(boat_selected);
                                 boat_selected = String(boat_selected).split(",");
                         }
                         else
@@ -207,7 +208,7 @@ define( {
                         }
                 });
                 on( boats, "change", function(evt){
-                        console.log(evt.join(','));
+                        //console.log(evt.join(','));
                         url.set("boat", String(evt.join(',')));
                 });
                 var filter_boat = new CheckBox( { id: "filter_boat", checked: url.get("filter_boat"), onChange: function(b) { 
@@ -266,12 +267,13 @@ define( {
 
             on( selectionGrids.PBs.grid, "Selected", function(idx){
                 var pb = selectionGrids.PBs.grid.selection.getSelected()[0];
-                console.log("Selected ! "+pb.max_latitude);
+                //console.log("Selected ! "+pb.max_latitude);
                 ajax.get_trackpoints( pb.start_point, pb.end_point, function( pts )
                 {
                         var min_speed = pb.min_speed / 3.6; /* has to be m/s not kph */
                         var diff_speed = (pb.max_speed - pb.min_speed)/ 3.6;
                         var prev = null;
+                        var piece_start = selectionGrids.pieces.grid.selection.getSelected()[0].start *1000;
                         map.layer.clear();
                         arr.forEach( pts, function(p)
                         {
@@ -314,7 +316,7 @@ define( {
                             f.setShapeProperties({
                               r : 2
                             });
-                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, dist: "+(p.distance / 1000).toFixed(2)+" km, time: "+ utils.time_to_str(p.time);
+                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, total dist: "+(p.distance / 1000).toFixed(2)+" km, piece distance: "+( p.distance - piece_start).toFixed(0)+", time: "+ utils.time_to_str(p.time);
                             // add the feature to the layer
                             map.layer.addFeature(f);
                             f.getShape();
@@ -331,14 +333,14 @@ define( {
                     var diff_latitude = pb.max_latitude - pb.min_latitude;
                     var scale = diff_longitude > diff_latitude ? diff_longitude : diff_latitude ;
                     var bounds =[ parseFloat(pb.min_longitude) + 0.5 * diff_longitude, parseFloat(pb.min_latitude) + 0.5 * diff_latitude ];
-                    console.log("Bounds "+bounds);
+                    //console.log("Bounds "+bounds);
                     scale =0.1;
-                    console.log("diff long :"+diff_longitude+" diff lat :" +diff_latitude+" scale : "+scale);
+                    //console.log("diff long :"+diff_longitude+" diff lat :" +diff_latitude+" scale : "+scale);
                     map.map.fitTo({
                     bounds :[ parseFloat(pb.min_longitude),parseFloat(pb.min_latitude),parseFloat(pb.max_longitude),parseFloat(pb.max_latitude) ]
                     });
                     map.layer.redraw();
-                    console.log(" long [ "+pb.min_longitude+" , "+pb.max_longitude+" ] lat ["+pb.min_latitude+" , "+pb.max_latitude+" ] ");
+                    //console.log(" long [ "+pb.min_longitude+" , "+pb.max_longitude+" ] lat ["+pb.min_latitude+" , "+pb.max_latitude+" ] ");
 
                 });
                 });
