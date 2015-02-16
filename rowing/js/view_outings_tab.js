@@ -130,7 +130,7 @@ define( {
             }
 
             function MyMap(main){
-                var map_container = new ContentPane( { style:'height:100%;' });
+                var map_container = new ContentPane( { style:'height:100%; overflow:hidden;' });
                 main.addChild( map_container );
                 this.map = new Map(map_container.containerNode);
                 // create a GfxLayer
