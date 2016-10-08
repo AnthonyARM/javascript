@@ -30,82 +30,80 @@ function convertTime( $str )
 function getBoatInfo( $boat_id, $mysqli )
 {
         $res = $mysqli->query("SELECT * from Boats WHERE id = ".$boat_id);
-        return $res->fetch_array(MYSQLI_ASSOC);
+        return db_fetch_array($res);
 }
 
 function createOutingRecord( $mysqli, $date )
 {
-        $tmp_boat = explode( ",", $_POST['boat'] );
-        if( count($tmp_boat) < 3 )
-        {
-                die("ERROR: boat_id invalid<br/>");
-                return;
-        }
-        $values = array();
+	$tmp_boat = explode( ",", $_POST['boat'] );
+	if( count($tmp_boat) < 3 )
+	{
+		die("ERROR: boat_id invalid<br/>");
+		return;
+	}
+	$values = array();
 
-        $boat = getBoatInfo( $tmp_boat[2], $mysqli);
-        $values['boat_id'] = $boat['id'];
-        $values['crew_id'] = $_POST['crewSelect'];
-        $title = $_POST['title'];
-        $location = $_POST['location'];
+	$boat = getBoatInfo( $tmp_boat[2], $mysqli);
+	$values['boat_id'] = $boat['id'];
+	$values['crew_id'] = $_POST['crewSelect'];
+	$title = $_POST['title'];
+	$location = $_POST['location'];
 
-        if( $boat['num_rowers'] == 1 )
-        {
-			if( $_POST['UploaderSelect'])
-                $values["rower1"] = $_POST['UploaderSelect'];
-        }
-        else
-        {
-			if( $_POST['StrokeSelect'])
-                $values["rower1"] = $_POST['StrokeSelect'];
-        }
+	if( $boat['num_rowers'] == 1 )
+	{
+		if( $_POST['UploaderSelect'])
+			$values["rower1"] = $_POST['UploaderSelect'];
+	}
+	else
+	{
+		if( $_POST['StrokeSelect'])
+			$values["rower1"] = $_POST['StrokeSelect'];
+	}
 
-        for( $i=2; $i < $boat['num_rowers'] ; $i++ )
-        {
-			if( $_POST[$i.'Select'])
-                $values["rower".$i] = $_POST[$i.'Select'];
-        }
+	for( $i=2; $i < $boat['num_rowers'] ; $i++ )
+	{
+		if( $_POST[$i.'Select'])
+			$values["rower".$i] = $_POST[$i.'Select'];
+	}
 
-        if( $boat['num_rowers'] > 1 )
-        {
-			if($_POST['BowSelect'])
-                $values["rower".$boat['num_rowers']] = $_POST['BowSelect'];
-        }
+	if( $boat['num_rowers'] > 1 )
+	{
+		if($_POST['BowSelect'])
+			$values["rower".$boat['num_rowers']] = $_POST['BowSelect'];
+	}
 
-        if( $_POST['CoachSelect'] )
-        {
-                $values['coach'] = $_POST['CoachSelect'];
-        }
+	if( $_POST['CoachSelect'] )
+	{
+		$values['coach'] = $_POST['CoachSelect'];
+	}
 
-        if( $boat['cox'] == 1 && $_POST['CoxSelect'])
-        {
-                $values['cox'] = $_POST['CoxSelect'];
-        }
+	if( $boat['cox'] == 1 && $_POST['CoxSelect'])
+	{
+		$values['cox'] = $_POST['CoxSelect'];
+	}
 
-        //http://www.wikihow.com/Prevent-SQL-Injection-in-PHP
-        $query = "INSERT INTO Outings (title, location, date,".implode(",",array_keys($values)).") VALUES ( ?, ?, ?,".implode(",",array_values($values)).")";
-        if( $stmt = $mysqli->prepare($query))
-        {
-                $stmt->bind_param("sss", $title, $location, $date);
-                $stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
-                $stmt->close();
-        }
-        else die("Statement failed: ". $mysqli->error . "<br>");
+	//http://www.wikihow.com/Prevent-SQL-Injection-in-PHP
+	$stmt = db_execute_query_params("INSERT INTO Outings (title, location, date,".implode(",",array_keys($values)).") VALUES ( ?, ?, ?,".implode(",",array_values($values)).")","sss", [$title, $location, $date]);
+	if( !$stmt->execute() )
+	{
+		die("Statement failed [Line ".__LINE__."]: ". db_error() . "<br>");
+	}
+	$stmt->close();
 
-        return $mysqli->insert_id;
+	return db_last_insert_id();
 }
 
 function getNodeText( $node, $name )
 {
-        $n = $node->getElementsByTagName( $name )->item(0);
-        if($n)
-                return $n->nodeValue;
-        else
-                return "";
+	$n = $node->getElementsByTagName( $name )->item(0);
+	if($n)
+		return $n->nodeValue;
+	else
+		return "";
 }
 function getNode( $node, $name )
 {
-    return $node->getElementsByTagName( $name )->item(0);
+	return $node->getElementsByTagName( $name )->item(0);
 }
 
 /* FIXME: Re-enable once testing is over 
@@ -116,41 +114,40 @@ if (file_exists($target_file))
 else
 */
 {
-    if (move_uploaded_file($tmp_filename, $target_file))
-    {
-        echo "The file ". basename( $filename ). " has been uploaded.<br/>";
-        $dom = new DOMDocument();
-        $dom->load( $target_file); 
-                $date = convertTime( getNodeText($dom, "Id") );
+	if (move_uploaded_file($tmp_filename, $target_file))
+	{
+		echo "The file ". basename( $filename ). " has been uploaded.<br/>";
+		$dom = new DOMDocument();
+		$dom->load( $target_file); 
+		$date = convertTime( getNodeText($dom, "Id") );
+		$outing_id = createOutingRecord( $mysqli, $date );
 
-                $outing_id = createOutingRecord( $mysqli, $date );
-
-        $points = $dom->getElementsByTagName("Trackpoint");
-                $start_time = 0.0;
-                $first =1;
-                $prev_time = 0.0;
-                $query = "INSERT INTO TrackPoints ( outing_id, longitude, latitude, distance, date, time, speed) VALUES ";
-                $query_args_types = "";
-                $query_args = array();
-                $hr_values = array();
-        foreach( $points as $pt )
-        {
-            $time = 0.0;
-            $speed = 0.0;
-            $dateStr =  getNodeText($pt, "Time" );
-            $pos = getNode( $pt, "Position");
-            if( $pos )
-            {
-                    $latStr = getNodeText( $pos, "LatitudeDegrees" );
-                    $lonStr = getNodeText( $pos, "LongitudeDegrees" );
-            }
-            $distance = getNodeText( $pt, "DistanceMeters");
-            $hr = getNode( $pt, "HeartRateBpm");
-            $hrStr = "";
-            if( $hr )
-            {
-                $hrStr = getNodeText( $hr, "Value");
-            }
+		$points = $dom->getElementsByTagName("Trackpoint");
+		$start_time = 0.0;
+		$first =1;
+		$prev_time = 0.0;
+		$query = "INSERT INTO TrackPoints ( outing_id, longitude, latitude, distance, date, time, speed) VALUES ";
+		$query_args_types = "";
+		$query_args = array();
+		$hr_values = array();
+		foreach( $points as $pt )
+		{
+			$time = 0.0;
+			$speed = 0.0;
+			$dateStr =  getNodeText($pt, "Time" );
+			$pos = getNode( $pt, "Position");
+			if( $pos )
+			{
+				$latStr = getNodeText( $pos, "LatitudeDegrees" );
+				$lonStr = getNodeText( $pos, "LongitudeDegrees" );
+			}
+			$distance = getNodeText( $pt, "DistanceMeters");
+			$hr = getNode( $pt, "HeartRateBpm");
+			$hrStr = "";
+			if( $hr )
+			{
+				$hrStr = getNodeText( $hr, "Value");
+			}
 			$hr_values[] = $hrStr;
 			if( $first )
 			{
@@ -173,68 +170,46 @@ else
 
 			$prev_time = $time;
 			$prev_distance = $distance;
-        }
-                if( $stmt = $mysqli->prepare($query))
-                {
-                        $args = array();
-                        $args []= & $query_args_types;
+		}
+		$stmt = db_execute_query_params($query, $query_args_types, $query_args);
+		$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+		$stmt->close();
 
-                        for( $i=0; $i < count($query_args); $i++)
-                        {
-                                $args[]= & $query_args[$i];
-                        }
-                        call_user_func_array( array($stmt,'bind_param'), $args );
-                        $stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
-                        $stmt->close();
-                        $trackpoint_id = mysqli_insert_id( $mysqli );
-                        $query = "";
-                        $query_args_types = "";
-                        $query_args = array();
-                        foreach( $hr_values as $hr )
-                        {
-                                if( $hr != "" )
-                                {
-                                        if( $query == "")
-                                        {
-                                                $query = "INSERT INTO PersonalTrackPoints ( rower_id, trackpoint_id, HR ) VALUES (? , ? , ?)";
-                                        }
-                                        else
-                                        {
-                                                $query .= ", ( ?, ?, ? )";
-                                        }
-                                        $query_args_types .= "iii";
-                                        $query_args []= $uploader;
-                                        $query_args []= $trackpoint_id;
-                                        $query_args []= $hr;
-                                }
-                                $trackpoint_id++;
-                        }
-						if( $query != "")
-						{
-							if( $stmt = $mysqli->prepare($query))
-							{
-									$args = array();
-									$args []= & $query_args_types;
-
-									for( $i=0; $i < count($query_args); $i++)
-									{
-											$args[]= & $query_args[$i];
-									}
-									call_user_func_array( array($stmt,'bind_param'), $args );
-									$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
-									$stmt->close();
-							}
-							else die("Statement failed: ". $mysqli->error . "<br> query 214 =".$query."<br/>");
-						}
-						generate_pbs($outing_id, $_POST['crewSelect'], $mysqli, $_POST['flowDirection']);
-
-                }
-                else die("Statement failed: ". $mysqli->error . "<br> query 216 =".$query."<br/>");
-    }
-    else
-    {
-        die("Sorry, there was an error uploading your file '".basename($filename)."'<br/>");
-    }
+		$trackpoint_id = db_last_insert_id();
+		$query = "";
+		$query_args_types = "";
+		$query_args = array();
+		foreach( $hr_values as $hr )
+		{
+			if( $hr != "" )
+			{
+				if( $query == "")
+				{
+					$query = "INSERT INTO PersonalTrackPoints ( rower_id, trackpoint_id, HR ) VALUES (? , ? , ?)";
+				}
+				else
+				{
+					$query .= ", ( ?, ?, ? )";
+				}
+				$query_args_types .= "iii";
+				$query_args []= $uploader;
+				$query_args []= $trackpoint_id;
+				$query_args []= $hr;
+			}
+			$trackpoint_id++;
+		}
+		if( $query != "")
+		{
+			$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
+			$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+			$stmt->close();
+			generate_pbs($outing_id, $_POST['crewSelect'], $mysqli, $_POST['flowDirection']);
+		}
+	}
+	else
+	{
+		die("Sorry, there was an error uploading your file '".basename($filename)."'<br/>");
+	}
 }
 $time_post = microtime(true);
 $exec_time = $time_post - $time_pre;

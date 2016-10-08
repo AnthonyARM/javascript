@@ -131,60 +131,45 @@ class PB
 
 function addPiecesToDB( $outing_id, $pieces, $mysqli )
 {
-    foreach( $pieces as $p )
-    {
-        $query = "INSERT INTO Pieces ( outing_id, trackpoint_start, trackpoint_end, min_longitude, max_longitude, min_latitude, max_latitude, duration, distance, downstream ) VALUES ";
-        $query .= "( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        if( $stmt = $mysqli->prepare($query))
-        {
-                $stmt->bind_param( "ssssssssss", $outing_id, $p->start->id, $p->end->id, $p->min_longitude, $p->max_longitude, $p->min_latitude, $p->max_latitude, $p->duration, $p->distance, $p->downstream);
-				$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
-                $stmt->close();
-                $piece_id = $mysqli->insert_id;
-                $query = "INSERT INTO PBs(piece_id, distance, start_point, end_point, duration, projected, min_speed, max_speed) VALUES ";
-                $query_args_types = "";
-                $query_args = array();
-                $first = 1;
-                foreach($p->PBs as $pb)
-                {
-                    if($first)
-                    {
-                        $first = 0;
-                    }
-                    else
-                        $query .=", ";
-                    $query .= "(?, ?, ?, ?, ?, ?, ?, ?)";
-                    $query_args_types .= "ssssssss";
-                    $query_args []= $piece_id;
-                    $query_args []= $pb->distance;
-                    $query_args []= $pb->start->id;
-                    $query_args []= $pb->end->id;
-                    $query_args []= $pb->time;
-                    $query_args []= $pb->projected;
-                    $query_args []= $pb->min_speed;
-                    $query_args []= $pb->max_speed;
+	foreach( $pieces as $p )
+	{
+		$query = "INSERT INTO Pieces ( outing_id, trackpoint_start, trackpoint_end, min_longitude, max_longitude, min_latitude, max_latitude, duration, distance, downstream ) VALUES ";
+		$query .= "( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		$stmt = db_execute_query_params($query, "ssssssssss", [$outing_id, $p->start->id, $p->end->id, $p->min_longitude, $p->max_longitude, $p->min_latitude, $p->max_latitude, $p->duration, $p->distance, $p->downstream]);
+		$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+		$stmt->close();
+		$piece_id = db_last_insert_id();
 
-                }
-                if( ! $first )
-                {
-                    if( $stmt = $mysqli->prepare($query))
-                    {
-                            $args = array();
-                            $args []= & $query_args_types;
-
-                            for( $i=0; $i < count($query_args); $i++)
-                            {
-                                    $args[]= & $query_args[$i];
-                            }
-                            call_user_func_array( array($stmt,'bind_param'), $args );
-							$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
-                            $stmt->close();
-                    }
-                    else die("Statement failed: ". $mysqli->error . "<br>");
-                }
-        }
-        else die("Statement failed: ". $mysqli->error . "<br>");
-    }
+		$query = "INSERT INTO PBs(piece_id, distance, start_point, end_point, duration, projected, min_speed, max_speed) VALUES ";
+		$query_args_types = "";
+		$query_args = array();
+		$first = 1;
+		foreach($p->PBs as $pb)
+		{
+			if($first)
+			{
+				$first = 0;
+			}
+			else
+				$query .=", ";
+			$query .= "(?, ?, ?, ?, ?, ?, ?, ?)";
+			$query_args_types .= "ssssssss";
+			$query_args []= $piece_id;
+			$query_args []= $pb->distance;
+			$query_args []= $pb->start->id;
+			$query_args []= $pb->end->id;
+			$query_args []= $pb->time;
+			$query_args []= $pb->projected;
+			$query_args []= $pb->min_speed;
+			$query_args []= $pb->max_speed;
+		}
+		if( ! $first )
+		{
+			$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
+			$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+			$stmt->close();
+		}
+	}
 }
 
 class Piece
@@ -259,7 +244,7 @@ class Piece
 function getCrewInfo( $crew_id, $mysqli )
 {
         $res = $mysqli->query("SELECT * from Crews WHERE id = ".$crew_id);
-        return $res->fetch_array(MYSQLI_ASSOC);
+        return db_fetch_array($res);
 }
 
 function getPBDistances( $mysqli )
@@ -269,7 +254,7 @@ function getPBDistances( $mysqli )
     if(!$res)
             die("ERROR : ".$mysqli->error."<br/>");
 
-    while ($row = $res->fetch_array(MYSQLI_ASSOC)) 
+    while ($row = db_fetch_array($res)) 
     {
         $distances []= $row['distance'];
     }
@@ -294,7 +279,7 @@ function generate_pbs( $outing_id, $crew_id, $mysqli, $flow_direction )
 
     $points = array();
     $prev = NULL;
-    while ($row = $res->fetch_array(MYSQLI_ASSOC)) 
+    while ($row = db_fetch_array($res)) 
     {
             $point = new Point( $prev, $row["distance"], $row["date"], $row["time"], $row["speed"], $row["id"], $row["longitude"], $row["latitude"]);
             $points[] = $point;
@@ -340,12 +325,10 @@ function generate_pbs( $outing_id, $crew_id, $mysqli, $flow_direction )
     }
     addPiecesToDB( $outing_id, $pieces, $mysqli );
 
-	/*
     foreach( $pieces as $p )
     {
             echo $p->str()."<br/>";
     }
-	 */
-   header("Location: rowing_stats.html");
+   //header("Location: rowing_stats.html");
 }
 ?>

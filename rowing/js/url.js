@@ -1,7 +1,6 @@
 define(["dojo/io-query", "dojo/hash"], function( ioQuery, hash )
     {
         var _hashes = ioQuery.queryToObject(hash()); //get
-        console.log("js/url constructor called");
         return {
                 /*
             clear : function() {
