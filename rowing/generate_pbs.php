@@ -138,7 +138,7 @@ function addPiecesToDB( $outing_id, $pieces, $mysqli )
         if( $stmt = $mysqli->prepare($query))
         {
                 $stmt->bind_param( "ssssssssss", $outing_id, $p->start->id, $p->end->id, $p->min_longitude, $p->max_longitude, $p->min_latitude, $p->max_latitude, $p->duration, $p->distance, $p->downstream);
-                $stmt->execute();
+				$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
                 $stmt->close();
                 $piece_id = $mysqli->insert_id;
                 $query = "INSERT INTO PBs(piece_id, distance, start_point, end_point, duration, projected, min_speed, max_speed) VALUES ";
@@ -177,7 +177,7 @@ function addPiecesToDB( $outing_id, $pieces, $mysqli )
                                     $args[]= & $query_args[$i];
                             }
                             call_user_func_array( array($stmt,'bind_param'), $args );
-                            $stmt->execute();
+							$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
                             $stmt->close();
                     }
                     else die("Statement failed: ". $mysqli->error . "<br>");
@@ -238,7 +238,7 @@ class Piece
                     }
                     $pt = $pt->next;
                 }
-                $this->downstream = 0 < (($this->end->latitude - $this->start->latitude) * $latitude_coeff + ($this->end->longitude - $this->start->longitude)* $longitude_coeff);
+                $this->downstream = (0 < (($this->end->latitude - $this->start->latitude) * $latitude_coeff + ($this->end->longitude - $this->start->longitude)* $longitude_coeff))? 1 : 0;
                 return true;
         }
         function str()
@@ -340,12 +340,12 @@ function generate_pbs( $outing_id, $crew_id, $mysqli, $flow_direction )
     }
     addPiecesToDB( $outing_id, $pieces, $mysqli );
 
-    /*
+	/*
     foreach( $pieces as $p )
     {
             echo $p->str()."<br/>";
     }
-    */
+	 */
    header("Location: rowing_stats.html");
 }
 ?>

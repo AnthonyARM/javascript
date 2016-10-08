@@ -71,6 +71,26 @@ define( {
                 ]],table);
                t.PBs.show( false );
 
+               t.distanceBests= new MyGrid("distanceBests", [[
+                  {'name': 'Id', 'field': 'id', hidden: true},
+                  {'name': 'Downstream','field':'downstream', 'width':'100px'},
+                  {'name': 'Date', 'field': 'date', 'width': '140px', editable: false},
+                  {'name': 'Title', 'field': 'title', 'width': '140px', editable: false},
+                  {'name': 'Duration','field':'fmt_duration', 'width':'100px'},
+                  {'name': 'Min speed (kph)','field':'min_speed', 'width':'100px'},
+                  {'name': 'Max speed (kph)','field':'max_speed', 'width':'100px'},
+                  {'name': 'Crew', 'field': 'crew', 'width': '200px', editable: false},
+                  {'name': 'Boat', 'field': 'boat', 'width': '200px', editable: false},
+                  {'name': 'Start (km)','field':'start', 'width':'100px'},
+                  {'name': 'End (km)','field':'end', 'width':'100px'},
+                  {'name': 'Length (m)','field':'distance', 'width':'100px'},
+                  {'name': 'Start (m)','field':'start', 'width':'100px'},
+                  {'name': 'End (m)','field':'end', 'width':'100px'},
+                  {'name': 'Duration','field':'fmt_duration', 'width':'100px'},
+                  {'name': 'Min speed (kph)','field':'min_speed', 'width':'100px'},
+                  {'name': 'Max speed (kph)','field':'max_speed', 'width':'100px'},
+                ]],table);
+               t.distanceBests.show( false );
                /*
                     id
                     piece_id
@@ -144,11 +164,12 @@ define( {
                 var main_table = new TableContainer( { cols: 1, showLabels: false} );
                 var menu_table = new TableContainer( { cols: 3, showLabels: false, style:'width:400px;white-space:nowrap;'} );
                 var selection_table = new TableContainer( { cols: 1, showLabels: false} );
-                var recent_selected = new RadioButton( { checked: true, value : "recent", name: "view_selection" });
-                var pbs_selected = new RadioButton( { checked: false, value : "pbs", name: "view_selection" });
+                var t = this;
+                t.recent_selected = new RadioButton( { checked: true, value : "recent", name: "view_selection"});
+                t.pbs_selected = new RadioButton( { checked: false, value : "pbs", name: "view_selection"});
                 menu_table.addChild( new ContentPane({content: "View: "}));
-                selection_table.addChild( recent_selected );
-                selection_table.addChild( pbs_selected );
+                selection_table.addChild( t.recent_selected );
+                selection_table.addChild( t.pbs_selected );
                 main_table.addChild( menu_table );
 
                 var pbs_categories = new Select ({ options : [
@@ -230,8 +251,8 @@ define( {
                 main.addChild( main_table );
                 create_label( filter_crew, "Filter by crew");
                 create_label( filter_boat, "Filter by boat");
-                create_label( recent_selected, "Recent outings");
-                create_label( pbs_selected, "Personal Bests");
+                create_label( t.recent_selected, "Recent outings");
+                create_label( t.pbs_selected, "Personal Bests");
             }
             // create a map widget.
             /*
@@ -265,6 +286,14 @@ define( {
             var selectionGrids = new SelectionGrids(main);
             var map = new MyMap(main);
 
+            on( filters.recent_selected, "Change", function(b){
+               selectionGrids.outings.grid.selection.clear();
+               selectionGrids.outings.show( b );
+               selectionGrids.PBs.show( false );
+               selectionGrids.pieces.show( false );
+               selectionGrids.distanceBests.grid.selection.clear();
+               selectionGrids.distanceBests.show(!b);
+            });
             on( selectionGrids.PBs.grid, "Selected", function(idx){
                 var pb = selectionGrids.PBs.grid.selection.getSelected()[0];
                 //console.log("Selected ! "+pb.max_latitude);

@@ -20,6 +20,13 @@ $uploader = $_POST['UploaderSelect'];
 include('db_connection.php');
 include('generate_pbs.php');
 
+function convertTime( $str )
+{
+
+	$time = strtotime($str);
+	date_default_timezone_set("Europe/London");
+	return date("Y-m-d H:i:s", $time);
+}
 function getBoatInfo( $boat_id, $mysqli )
 {
         $res = $mysqli->query("SELECT * from Boats WHERE id = ".$boat_id);
@@ -44,20 +51,24 @@ function createOutingRecord( $mysqli, $date )
 
         if( $boat['num_rowers'] == 1 )
         {
+			if( $_POST['UploaderSelect'])
                 $values["rower1"] = $_POST['UploaderSelect'];
         }
         else
         {
+			if( $_POST['StrokeSelect'])
                 $values["rower1"] = $_POST['StrokeSelect'];
         }
 
         for( $i=2; $i < $boat['num_rowers'] ; $i++ )
         {
+			if( $_POST[$i.'Select'])
                 $values["rower".$i] = $_POST[$i.'Select'];
         }
 
         if( $boat['num_rowers'] > 1 )
         {
+			if($_POST['BowSelect'])
                 $values["rower".$boat['num_rowers']] = $_POST['BowSelect'];
         }
 
@@ -66,7 +77,7 @@ function createOutingRecord( $mysqli, $date )
                 $values['coach'] = $_POST['CoachSelect'];
         }
 
-        if( $boat['cox'] == 1 )
+        if( $boat['cox'] == 1 && $_POST['CoxSelect'])
         {
                 $values['cox'] = $_POST['CoxSelect'];
         }
@@ -76,7 +87,7 @@ function createOutingRecord( $mysqli, $date )
         if( $stmt = $mysqli->prepare($query))
         {
                 $stmt->bind_param("sss", $title, $location, $date);
-                $stmt->execute();
+                $stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
                 $stmt->close();
         }
         else die("Statement failed: ". $mysqli->error . "<br>");
@@ -110,7 +121,7 @@ else
         echo "The file ". basename( $filename ). " has been uploaded.<br/>";
         $dom = new DOMDocument();
         $dom->load( $target_file); 
-                $date = getNodeText($dom, "Id");
+                $date = convertTime( getNodeText($dom, "Id") );
 
                 $outing_id = createOutingRecord( $mysqli, $date );
 
@@ -140,27 +151,28 @@ else
             {
                 $hrStr = getNodeText( $hr, "Value");
             }
-                        $hr_values[] = $hrStr;
-                        if( $first )
-                        {
-                                $start_time = strtotime($dateStr);
-                                $first = 0;
-                                $query .= "($outing_id, ?, ?, ?, ?, $time, $speed)";
-                        }
-                        else
-                        {
-                                $time = strtotime($dateStr) - $start_time;
-                                $speed = ( $distance - $prev_distance ) / ($time - $prev_time);
-                                $query .= ", ($outing_id, ?, ?, ?, ?, $time, $speed)";
-                        }
-                        $query_args_types .= "ssss";
-                        $query_args []= $lonStr;
-                        $query_args []= $latStr;
-                        $query_args []= $distance;
-                        $query_args []= $dateStr;
+			$hr_values[] = $hrStr;
+			if( $first )
+			{
+				$start_time = strtotime($dateStr);
+				$first = 0;
+				$query .= "($outing_id, ?, ?, ?, ?, $time, $speed)";
+			}
+			else
+			{
+				$time = strtotime($dateStr) - $start_time;
+				$speed = ( $distance - $prev_distance ) / ($time - $prev_time);
+				$query .= ", ($outing_id, ?, ?, ?, ?, $time, $speed)";
+			}
+			$distance = strlen($distance) ? $distance : $prev_distance;
+			$query_args_types .= "ssss";
+			$query_args []= $lonStr;
+			$query_args []= $latStr;
+			$query_args []= $distance;
+			$query_args []= convertTime($dateStr);
 
-                        $prev_time = $time;
-                        $prev_distance = $distance;
+			$prev_time = $time;
+			$prev_distance = $distance;
         }
                 if( $stmt = $mysqli->prepare($query))
                 {
@@ -172,7 +184,7 @@ else
                                 $args[]= & $query_args[$i];
                         }
                         call_user_func_array( array($stmt,'bind_param'), $args );
-                        $stmt->execute();
+                        $stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
                         $stmt->close();
                         $trackpoint_id = mysqli_insert_id( $mysqli );
                         $query = "";
@@ -197,23 +209,27 @@ else
                                 }
                                 $trackpoint_id++;
                         }
-                        if( $query != "" && $stmt = $mysqli->prepare($query))
-                        {
-                                $args = array();
-                                $args []= & $query_args_types;
+						if( $query != "")
+						{
+							if( $stmt = $mysqli->prepare($query))
+							{
+									$args = array();
+									$args []= & $query_args_types;
 
-                                for( $i=0; $i < count($query_args); $i++)
-                                {
-                                        $args[]= & $query_args[$i];
-                                }
-                                call_user_func_array( array($stmt,'bind_param'), $args );
-                                $stmt->execute();
-                                $stmt->close();
-                                generate_pbs($outing_id, $_POST['crewSelect'], $mysqli, $_POST['flowDirection']);
-                        }
-                        else die("Statement failed: ". $mysqli->error . "<br>");
+									for( $i=0; $i < count($query_args); $i++)
+									{
+											$args[]= & $query_args[$i];
+									}
+									call_user_func_array( array($stmt,'bind_param'), $args );
+									$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+									$stmt->close();
+							}
+							else die("Statement failed: ". $mysqli->error . "<br> query 214 =".$query."<br/>");
+						}
+						generate_pbs($outing_id, $_POST['crewSelect'], $mysqli, $_POST['flowDirection']);
+
                 }
-                else die("Statement failed: ". $mysqli->error . "<br>");
+                else die("Statement failed: ". $mysqli->error . "<br> query 216 =".$query."<br/>");
     }
     else
     {

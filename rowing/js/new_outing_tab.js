@@ -180,11 +180,13 @@ define({
                                 if( showCrew && crewSelect.value == "" )
                                     errors += "Please select a crew<br/>";
 
+				/*
                                 for( p of people )
                                 {
                                         if( p.show  && peopleNodes[p.name].select.value == "" && p.name != "Coach")
                                                 errors += "Please select a "+ p.name+"<br/>";
                                 }
+								*/
                                 var boat_array= String(boat.value).split(",");
                                 if( boat_array.length > 2 )
                                 {
