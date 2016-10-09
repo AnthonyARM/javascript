@@ -1,6 +1,8 @@
 
 function execute_select_query( cb, params )
 {
+	//console.log( params );
+ //       console.log(new Error().stack);
                 require([
                         'dojo/_base/xhr',
                         'dojo/json',

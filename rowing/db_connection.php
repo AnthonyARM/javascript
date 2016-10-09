@@ -4,7 +4,7 @@
 $mysqli = new mysqli("localhost", "rowing", "radegund", "rowing_stats");
 if($mysqli->connect_errno)
 {
-	echo "Failed to connect to MySQL: ".$mysqli->connect_error;
+	die("Failed to connect to MySQL: ".$mysqli->connect_error);
 }
 
 function db_fetch_array( $res )
@@ -27,7 +27,7 @@ function db_execute_query_params( $query, $query_args_types, $query_args )
         global $mysqli;
         if(! ($stmt = $mysqli->prepare($query)))
         {
-                echo "ERROR: SQL Request preparation failed: (". $mysqli->errno .") ". $mysqli->error."<br/>";
+                die("ERROR: SQL Request preparation failed: (". $mysqli->errno .") ". $mysqli->error."<br/>");
         }
         $args = array();
         $args []= & $query_args_types;
@@ -38,7 +38,7 @@ function db_execute_query_params( $query, $query_args_types, $query_args )
         }
         if( !call_user_func_array( array($stmt,'bind_param'), $args ))
         {
-                echo "ERROR: SQL Request bind_param failed: (". $stmt->errno .") ". $stmt->error."<br/>";
+                die("ERROR: SQL Request bind_param failed: (". $stmt->errno .") ". $stmt->error."<br/>");
         }
         return $stmt;
 }
@@ -112,4 +112,46 @@ function db_last_insert_id()
 	return $mysqli->lastInsertRowID();
 }
 
+function db_delete_outings($outing_ids)
+{
+	$ids= "(";
+	$query_args_types = "";
+	$query_args = array();
+	for( $i=0; $i<count($outing_ids); $i++)
+	{
+		if($i != 0)
+			$ids .= ", ";
+		$ids .= "?";
+		$query_args []= $outing_ids[$i];
+		$query_args_types .= "i";
+	}
+	$ids .= ")";
+
+	$query = "DELETE FROM PBs where piece_id in (SELECT id FROM Pieces where outing_id in ".$ids.")";
+	$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
+	$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+	$stmt->close();
+
+	$query = "DELETE FROM Pieces where outing_id in ".$ids;
+	$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
+	$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+	$stmt->close();
+
+	$query = "DELETE FROM PersonalTrackPoints where trackpoint_id in (SELECT id FROM TrackPoints where outing_id in ".$ids.")";
+	$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
+	$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+	$stmt->close();
+
+	$query = "DELETE FROM TrackPoints where outing_id in ".$ids;
+	$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
+	$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+	$stmt->close();
+
+	$query = "DELETE FROM Outings where id in ".$ids;
+	$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
+	$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+	$stmt->close();
+
+}
+//db_delete_outings($ids);
 ?>

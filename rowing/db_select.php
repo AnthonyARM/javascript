@@ -9,7 +9,7 @@ $requests = array (
     "get_crews" => function() { return "SELECT * from Crews";},
     "get_trackpoints_in_range" => function() { return "SELECT * from TrackPoints where id between ".$_POST['start']." AND ".$_POST['end']; },
     "get_rowers" => function() { return "SELECT * from Rowers";},
-    "get_outings" => function() { return "SELECT Outings.id, Outings.title, Outings.date, Crews.name as crew, Boats.name as boat FROM Outings INNER JOIN Crews ON Outings.crew_id=Crews.id INNER JOIN Boats ON Outings.boat_id=Boats.id";},
+    "get_outings" => function() { return "SELECT Outings.id, Outings.title, Outings.date, Crews.name as crew, Boats.name as boat FROM Outings INNER JOIN Crews ON Outings.crew_id=Crews.id INNER JOIN Boats ON Outings.boat_id=Boats.id ORDER BY Outings.date DESC";},
     "get_pieces" => function() { return "SELECT Pieces.*, ".db_to_time("Pieces.duration")." as fmt_duration, ".db_truncate_float("starts.distance/1000",3)." as start, ".db_truncate_float("ends.distance/1000",3)." as end FROM Pieces
     INNER JOIN TrackPoints starts ON starts.id=Pieces.trackpoint_start
     INNER JOIN TrackPoints ends ON ends.id=Pieces.trackpoint_end
