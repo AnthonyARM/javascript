@@ -41,7 +41,7 @@ function update_crew()
             return null;
         }
 		 */
-        return db_execute_query_params("UPDATE Crews SET ".$_POST['field']."=? where id = ?", "sd", [ $_POST['value'],$_POST['id']]);
+        return db_execute_query_params("UPDATE Crews SET ".$_POST['field']."=? where id = ?", "si", [ $_POST['value'],$_POST['id']]);
 }
 
 $requests = array (
@@ -56,9 +56,10 @@ if( array_key_exists( $_POST['query'], $requests ) )
 
         if( ! $stmt->execute() )
         {
-                echo "ERROR: SQL Request execution failed: (". $stmt->errno .") ". $stmt->error."<br/>";
+                echo "ERROR: SQL Request execution failed: ".db_error()."<br/>";
         }
-        echo mysqli_insert_id( $mysqli );
+		$stmt->close();
+        echo db_last_insert_id();
 }
 else
         echo "ERROR: Unknown query '".$_POST['query']."'<br/>";
