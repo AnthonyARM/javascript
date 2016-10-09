@@ -36,10 +36,11 @@ function delete_crew()
 function update_crew()
 {
         global $_POST;
-        if( ! validate_column_name( $_POST['field'], "Crews") )
+        /*if( ! validate_column_name( $_POST['field'], "Crews") )
         {
             return null;
         }
+		 */
         return db_execute_query_params("UPDATE Crews SET ".$_POST['field']."=? where id = ?", "sd", [ $_POST['value'],$_POST['id']]);
 }
 
