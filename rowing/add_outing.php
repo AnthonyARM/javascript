@@ -130,6 +130,7 @@ else
 		$query_args_types = "";
 		$query_args = array();
 		$hr_values = array();
+		$num=0;
 		foreach( $points as $pt )
 		{
 			$time = 0.0;
@@ -170,12 +171,27 @@ else
 
 			$prev_time = $time;
 			$prev_distance = $distance;
+			$num++;
+			if($num > 50)
+			{
+				$stmt = db_execute_query_params($query, $query_args_types, $query_args);
+				$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+				$stmt->close();
+				$query = "INSERT INTO TrackPoints ( outing_id, longitude, latitude, distance, date, time, speed) VALUES ";
+				$query_args_types = "";
+				$query_args = array();
+				$num=0;
+			}
 		}
-		$stmt = db_execute_query_params($query, $query_args_types, $query_args);
-		$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
-		$stmt->close();
+		if($num > 0 )
+		{
+			$stmt = db_execute_query_params($query, $query_args_types, $query_args);
+			$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+			$stmt->close();
+		}
 
-		$trackpoint_id = db_last_insert_id();
+		/*
+		$trackpoint_id = db_last_insert_id();//FIXME ?
 		$query = "";
 		$query_args_types = "";
 		$query_args = array();
@@ -203,8 +219,9 @@ else
 			$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
 			$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
 			$stmt->close();
-			generate_pbs($outing_id, $_POST['crewSelect'], $mysqli, $_POST['flowDirection']);
 		}
+		 */
+		generate_pbs($outing_id, $_POST['crewSelect'], $mysqli, $_POST['flowDirection']);
 	}
 	else
 	{
