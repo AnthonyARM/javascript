@@ -160,7 +160,9 @@ else
 			{
 				$time = strtotime($dateStr) - $start_time;
 				$speed = ( $distance - $prev_distance ) / ($time - $prev_time);
-				$query .= ", ($outing_id, ?, ?, ?, ?, $time, $speed)";
+				if($num != 0 )
+					$query .=", ";
+				$query .= "($outing_id, ?, ?, ?, ?, $time, $speed)";
 			}
 			$distance = strlen($distance) ? $distance : $prev_distance;
 			$query_args_types .= "ssss";
