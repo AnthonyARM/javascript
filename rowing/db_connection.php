@@ -64,7 +64,8 @@ function db_fetch_array( $res )
 }
 function db_to_time( $time )
 {
-	return "time(".$time.")";
+	return "printf(\"%dm%ds\", ".$time."/60, ".$time." % 60)";
+	//return "printf(\"%dh%dm%ds\",".$time."/3600, ".$time."%3600/60, ".$time." % 60)";
 }
 function db_truncate_float( $num, $dec)
 {
