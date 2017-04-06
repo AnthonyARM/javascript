@@ -19,6 +19,32 @@ $uploader = $_POST['UploaderSelect'];
 
 include('db_connection.php');
 include('generate_pbs.php');
+/**
+ * Calculates the great-circle distance between two points, with
+ * the Haversine formula.
+ * @param float $latitudeFrom Latitude of start point in [deg decimal]
+ * @param float $longitudeFrom Longitude of start point in [deg decimal]
+ * @param float $latitudeTo Latitude of target point in [deg decimal]
+ * @param float $longitudeTo Longitude of target point in [deg decimal]
+ * @param float $earthRadius Mean earth radius in [m]
+ * @return float Distance between points in [m] (same as earthRadius)
+ */
+function calculate_distance(
+  $latitudeFrom, $longitudeFrom, $latitudeTo, $longitudeTo, $earthRadius = 6371000)
+{
+  // convert from degrees to radians
+  $latFrom = deg2rad($latitudeFrom);
+  $lonFrom = deg2rad($longitudeFrom);
+  $latTo = deg2rad($latitudeTo);
+  $lonTo = deg2rad($longitudeTo);
+
+  $latDelta = $latTo - $latFrom;
+  $lonDelta = $lonTo - $lonFrom;
+
+  $angle = 2 * asin(sqrt(pow(sin($latDelta / 2), 2) +
+    cos($latFrom) * cos($latTo) * pow(sin($lonDelta / 2), 2)));
+  return $angle * $earthRadius;
+}
 
 function convertTime( $str )
 {
@@ -119,13 +145,18 @@ else
 		echo "The file ". basename( $filename ). " has been uploaded.<br/>";
 		$dom = new DOMDocument();
 		$dom->load( $target_file); 
-		$date = convertTime( getNodeText($dom, "Id") );
+		//$date = convertTime( getNodeText($dom, "Id") );
+		$date = convertTime( getNodeText($dom, "time") );
 		$outing_id = createOutingRecord( $mysqli, $date );
 
-		$points = $dom->getElementsByTagName("Trackpoint");
+		//$points = $dom->getElementsByTagName("Trackpoint");
+		$points = $dom->getElementsByTagName("trkpt");
 		$start_time = 0.0;
 		$first =1;
 		$prev_time = 0.0;
+		$distance = 0.0;
+		$prev_lat = 0.0;
+		$prev_lon = 0.0;
 		$query = "INSERT INTO TrackPoints ( outing_id, longitude, latitude, distance, date, time, speed) VALUES ";
 		$query_args_types = "";
 		$query_args = array();
@@ -135,20 +166,25 @@ else
 		{
 			$time = 0.0;
 			$speed = 0.0;
-			$dateStr =  getNodeText($pt, "Time" );
+			//$dateStr =  getNodeText($pt, "Time" );
+			$dateStr =  getNodeText($pt, "time" );
+			/*
 			$pos = getNode( $pt, "Position");
 			if( $pos )
 			{
 				$latStr = getNodeText( $pos, "LatitudeDegrees" );
 				$lonStr = getNodeText( $pos, "LongitudeDegrees" );
 			}
-			$distance = getNodeText( $pt, "DistanceMeters");
-			$hr = getNode( $pt, "HeartRateBpm");
-			$hrStr = "";
+			*/
+			$latStr = getAttributeText( $pt, "lat" );
+			$lonStr = getAttributeText( $pt, "lon" );
+			//$distance = getNodeText( $pt, "DistanceMeters");
+			//$hr = getNode( $pt, "HeartRateBpm");
+			/*$hrStr = "";
 			if( $hr )
 			{
 				$hrStr = getNodeText( $hr, "Value");
-			}
+			}*/
 			$hr_values[] = $hrStr;
 			if( $first )
 			{
@@ -158,13 +194,14 @@ else
 			}
 			else
 			{
+				$delta = calculate_distance($prev_lat, $prev_lon, $latStr, $lonStr);
+				$distance += $delta;
 				$time = strtotime($dateStr) - $start_time;
-				$speed = ( $distance - $prev_distance ) / ($time - $prev_time);
+				$speed = $delta / ($time - $prev_time);
 				if($num != 0 )
 					$query .=", ";
 				$query .= "($outing_id, ?, ?, ?, ?, $time, $speed)";
 			}
-			$distance = strlen($distance) ? $distance : $prev_distance;
 			$query_args_types .= "ssss";
 			$query_args []= $lonStr;
 			$query_args []= $latStr;
@@ -172,12 +209,14 @@ else
 			$query_args []= convertTime($dateStr);
 
 			$prev_time = $time;
-			$prev_distance = $distance;
+			$prev_lon = $lonStr;
+			$prev_lat = $latStr;
+
 			$num++;
 			if($num > 50)
 			{
 				$stmt = db_execute_query_params($query, $query_args_types, $query_args);
-				$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+				$stmt->execute() or die( __LINE__." : ".$mysqli->lastErrorMsg()."<br/>");
 				$stmt->close();
 				$query = "INSERT INTO TrackPoints ( outing_id, longitude, latitude, distance, date, time, speed) VALUES ";
 				$query_args_types = "";
@@ -188,7 +227,7 @@ else
 		if($num > 0 )
 		{
 			$stmt = db_execute_query_params($query, $query_args_types, $query_args);
-			$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+			$stmt->execute() or die( __LINE__." : ".$mysqli->lastErrorMsg()."<br/>");
 			$stmt->close();
 		}
 
