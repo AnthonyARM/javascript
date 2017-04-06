@@ -64,12 +64,14 @@ function db_fetch_array( $res )
 }
 function db_to_time( $time )
 {
-	return "printf(\"%dm%ds\", ".$time."/60, ".$time." % 60)";
+	return "cast(".$time."/60 as integer)||\"m\"||cast(".$time."%60 as integer)||\"s\"";
+	//return "printf(\"%dm%ds\", ".$time."/60, ".$time." % 60)";
 	//return "printf(\"%dh%dm%ds\",".$time."/3600, ".$time."%3600/60, ".$time." % 60)";
 }
 function db_truncate_float( $num, $dec)
 {
-	return "printf(\"%.".$dec."f\",".$num.")";
+	return "round(".$num.",".$dec.")";
+	//return "printf(\"%.".$dec."f\",".$num.")";
 }
 
 function get_type( $type )
