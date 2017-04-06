@@ -150,7 +150,7 @@ define({
 
                                 });
 
-                table.addChild( new ContentPane({content: "TCX track:"}));
+                table.addChild( new ContentPane({content: "SportrackLive GPX track:"}));
                 var uploader = new Uploader( { multiple:false, type:"submit", id: "tcxBtn", label:"Choose file" } ) 
                 var fileCell = new TableContainer( { cols : 2, showLabels : false } );
                 var filename = new ContentPane( );
@@ -171,7 +171,7 @@ define({
                 on (form, "submit", function(evt){
                                 var errors = "";
                                 if( filename.get("content") == "" )
-                                        errors += "You need to select a TCX file to upload<br/>";
+                                        errors += "You need to select a GPX file to upload<br/>";
                                 if( title.value == "")
                                         errors += "Please enter a Title for the outing<br/>";
                                 if( loc.value == "")
