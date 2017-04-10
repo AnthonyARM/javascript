@@ -119,6 +119,16 @@ function createOutingRecord( $mysqli, $date )
 	return db_last_insert_id();
 }
 
+function getAttribute( $node, $name)
+{
+	return $node->getAttributeNode($name);
+}
+
+function getAttributeText( $node, $name)
+{
+	return $node->getAttribute($name);
+}
+
 function getNodeText( $node, $name )
 {
 	$n = $node->getElementsByTagName( $name )->item(0);
