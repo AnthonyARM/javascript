@@ -1,0 +1,252 @@
+<!DOCTYPE HTML>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
+        <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
+        <meta name="apple-mobile-web-app-capable" content="yes"/>
+        <title>Radegund Mile 2018</title>
+        <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/dojo/1.13.0/dojox/mobile/deviceTheme.js"></script>
+        <!-- load dojo and provide config via data attribute -->
+        <script src="//ajax.googleapis.com/ajax/libs/dojo/1.13.0/dojo/dojo.js"
+                data-dojo-config="async: 1, packages: [ {
+                                      name: 'js',
+                                      location: location.pathname.replace(/\/[^/]+$/, '') + '/js',
+                                      parseOnLoad: false}]" >
+        </script>
+        <script>
+        function create_main_layout()
+        {
+                require(["dojox/mobile/parser",
+                    "dijit/registry",
+                    "dojox/mobile/View",
+                    "dojox/mobile/Heading",
+                    "dojox/mobile/RoundRectList",
+                    "dojox/mobile/ListItem",
+                    "dojox/mobile/Switch",
+                    "dojox/mobile/RoundRectCategory",
+                    "dojox/mobile/ContentPane",
+                    "js/url",
+                    "dojo/_base/connect",
+                    "dojox/mobile/SimpleDialog",
+                    "dojo/dom",
+                    "dojox/mobile/Button",
+                    "dojo/on",
+                    "dojox/mobile/compat",
+                    "dojo/domReady!",
+
+                    ],
+                function(parser, registry, View, Heading, RoundRectList, ListItem, Switch, RoundRectCategory, Pane, url, connect, SimpleDialog, dom, Button, on)
+                {
+                    parser.parse();
+                    if(! url.get("tab"))
+                    {
+                        url.set("tab","mainMenu");
+                    }
+                    var g_boatList = new Array();
+                    function getBoatList()
+                    {
+                        if( g_boatList.length == 0 )
+                        {
+                            console.log("TODO: get boat list");
+                            for(var i=0; i < 20; i++)
+                            {
+                                g_boatList.push({id:i, name:"Boat "+i, state:"off"});
+                            }
+                        }
+                        return g_boatList;
+                    }
+                    function updateTickBoatFinishState( id, state)
+                    {
+                        console.log("TODO: set boat " +id+" to "+state);
+                        for( var b of g_boatList)
+                        {
+                            if(b.id == id)
+                            {
+                                b.state = state;
+                                return;
+                            }
+                        }
+                    }
+                    function createMenuView(view)
+                    {
+                        console.log("Create menu view");
+                        var results = new ListItem({
+                            rightText: "Results",
+                            moveTo:"boatTicking"});
+                        view.addChild(new Heading({label:"Radegund Mile 2018"}));
+                        var menu = new RoundRectList();
+                        view.addChild(menu);
+                        menu.addChild( new ListItem( { rightText:"Tick boats at finish", moveTo:"boatTickingFinish"}));
+                        menu.addChild( new ListItem( { rightText:"Tick boats at start", moveTo:"boatTickingStart"}));
+                        menu.addChild( new ListItem( { rightText:"Time boats at start", moveTo:"boatTimingStart"}));
+                        menu.addChild( new ListItem( { rightText:"Time boats at finish", moveTo:"boatTimingFinish"}));
+                        view.prepareView = null;
+                    }
+
+                    function createTickBoatFinishView(view)
+                    {
+                        console.log("Create tick boats finish view");
+                        console.log(view);
+                        if(!view.hasChildren())
+                        {
+                            var confirmView= registry.byId('confirm');
+                            view.addChild( new Heading({label:"Tick boats at finish", back:"Back to menu", moveTo:"mainMenu"}));
+                            var list = RoundRectList();
+                            view.addChild(list);
+                            boatList = getBoatList();
+                            for(var b of boatList)
+                            {
+                                var boat = new ListItem( { boat_id:b.id, noArrow:true, label:b.name,  clickable:true});
+                                var button = new Switch({ rightLabel:"Waiting", boat: boat, value:b.state, leftLabel:"Passed", onStateChanged: function(new_state){
+                                    dlg = registry.byId("ConfirmationDialog");
+                                    if(new_state == "on")
+                                        dom.byId("dialogContent").innerHTML = this.boat.label + " passed the finish line ?";
+                                    else
+                                        dom.byId("dialogContent").innerHTML = "Reset state of "+this.boat.label + " ?";
+                                    state = this;
+                                    registry.byId("confirmationDialogValidate").onClick = function(evt){
+                                        updateTickBoatFinishState(state.boat.id, new_state);
+                                        dlg.hide();};
+                                    registry.byId("cancelDialogValidate").onClick = function(evt){
+
+                                        if(new_state == "off")
+                                        {
+                                            state.set("value","on");
+                                        }
+                                        else
+                                        {
+                                            state.set("value","off");
+                                        }
+                                        dlg.hide();};
+                                    dlg.show();
+                                }});
+                                boat.addChild(button);
+                                boat.button = button;
+                                boat.onClick =  function(evt){ 
+                                    console.log("OnClick boat");
+                                    if(this.button.value == "off")
+                                    {
+                                        this.button.set("value","on");
+                                    }
+                                    else
+                                    {
+                                        this.button.set("value","off");
+                                    }
+                                    };
+
+                                /*var boat = new ListItem( { boat_id:i, rightText: "Boat "+i,  moveTo:"mainMenu", onClick: function(evt){ 
+                                    confirmView.boat = this;
+                                    }});
+                                    */
+                                //connect.connect(boat, "onClick", function (){ console.log("FOOOOO");});
+                                list.addChild( boat );
+                            }
+                        }
+                    }
+
+                    function createConfirmView(view)
+                    {
+                        if(!view.hasChildren())
+                        {
+                            view.addChild( new Heading({label:"Are you sure?", back:"Back", moveTo:"#"}));
+                        }
+                    }
+
+                    var views = new Array();
+                    views.push( new View({ id: "mainMenu", prepareView: createMenuView}));
+                    views.push( new View({ id: "boatTickingFinish", prepareView: createTickBoatFinishView}));
+                    views.push( new View({ id: "boatTickingStart", prepareView: function(view){ console.log("prepareView!");}}));
+                    views.push( new View({ id: "confirm", prepareView: createConfirmView }));
+                    var viewList = registry.byId('viewList');
+                    selectedView = url.get("tab");
+                    for( var v of views)
+                    {
+                        if( v.id == selectedView )
+                        {
+                            v.selected = true;
+                            v.prepareView(v);
+                            viewList.addChild(v);
+                        }
+                    }
+                    for( var v of views)
+                    {
+                        if( v.id != selectedView )
+                        {
+                            viewList.addChild(v);
+                        }
+                    }
+
+                    connect.subscribe("/dojox/mobile/beforeTransitionIn", function( view, moveTo, dir, transition, context, method){
+                        console.log("Moving to "+moveTo);
+                        url.set("tab", view.id);
+                        if( view.prepareView )
+                        {
+                            view.prepareView(view);
+                        }
+                    });
+                });
+            /*
+            <!--
+        <!-- the view or "page"; select it as the "home" screen -->
+        <div id="menuView" data-dojo-type="dojox/mobile/View" data-dojo-props="selected:true">
+        <!-- a sample heading -->
+        <h1 data-dojo-type="dojox/mobile/Heading">Radegund Mile 2018</h1>
+        <!-- a rounded rectangle list container -->
+        <ul data-dojo-type="dojox/mobile/RoundRectList" id='menuList'>
+            <!-- list item with an icon that slides this view away and then loads another page -->
+            <li data-dojo-type="dojox/mobile/ListItem"
+                data-dojo-props="rightText:'Boat Timing (Start)', moveTo:'boatTicking'"></li>
+            <li data-dojo-type="dojox/mobile/ListItem"
+                data-dojo-props="rightText:'Boat Timing (Finish)', moveTo:'boatTicking'"></li>
+            <!-- list item with an icon that slides to a view called "boatTicking" -->
+            <li data-dojo-type="dojox/mobile/ListItem"
+                data-dojo-props="rightText:'Boat Ticking (Start)', moveTo:'boatTicking'"></li>
+            <li data-dojo-type="dojox/mobile/ListItem"
+                data-dojo-props="rightText:'Boat Ticking (Finish)', moveTo:'boatTicking'"></li>
+        </ul>
+        </div>
+        </div>
+        <!-- The "General" sub-page -->
+        <div id="boatTicking" data-dojo-type="dojox/mobile/View">
+            <!-- a sample heading -->
+            <h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="back:'Menu', moveTo:'menuView'">Boat Ticking</h1>
+            <!-- a rounded rectangle list container -->
+            <ul data-dojo-type="dojox/mobile/RoundRectList">
+                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="moveTo:'about'">About</li>
+                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'2h 40m', moveTo:'about'">Usage</li>
+            </ul>
+        </div>
+        <!-- And let's add another view "About" -->
+        <div id="about" data-dojo-type="dojox/mobile/View">
+            <!-- Main view heading -->
+            <h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="back:'General', moveTo:'boatTicking'">About</h1>
+            <!-- subheading -->
+            <h2 data-dojo-type="dojox/mobile/RoundRectCategory">Generic Mobile Device</h2>
+            <!-- a rounded rectangle list container -->
+            <ul data-dojo-type="dojox/mobile/RoundRectList">
+                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'AcmePhone'">Network</li>
+                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'AcmePhone'">Line</li>
+                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'1024'">Songs</li>
+                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'10'">Videos</li>
+            </ul>
+            --!>
+            */
+        }
+        create_main_layout();
+        </script>
+    </head>
+    <body style="visibility:hidden;" id="body">
+        <p id="error"></p>
+        <div data-dojo-type="dojox/mobile/ContentPane" id="viewList">
+        </div>
+        <div id="ConfirmationDialog" data-dojo-type="dojox/mobile/SimpleDialog">
+              <div class="mblSimpleDialogTitle">Are you sure ?</div>
+              <div class="mblSimpleDialogText" id="dialogContent"></div>
+                  <button data-dojo-type="dojox/mobile/Button" id="confirmationDialogValidate" class="mblSimpleDialogButton"
+                    style="width:100px;">Yes</button>
+                  <button data-dojo-type="dojox/mobile/Button" id="cancelDialogValidate"  class="mblSimpleDialogButton"
+                    style="width:100px;">No</button>
+        </div>
+    </body>
+</html>
