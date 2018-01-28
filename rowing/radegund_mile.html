@@ -63,6 +63,7 @@
         {
                 require(["dojox/mobile/parser",
                     "dijit/registry",
+                    "dijit/focus",
                     "dojo/dom-style",
                     "dojox/mobile/View",
                     "dojox/mobile/Heading",
@@ -77,14 +78,16 @@
                     "dojo/dom",
                     "dojox/mobile/Button",
                     "dojox/mobile/TextBox",
+                    "dojox/mobile/GridLayout",
                     "dojo/on",
                     "dojox/mobile/compat",
                     "dojo/domReady!",
 
                     ],
-                function(parser, registry, domStyle, View, Heading, RoundRectList, ListItem, Switch, RoundRectCategory, Pane, url, connect, SimpleDialog, dom, Button, TextBox, on)
+                function(parser, registry, focusUtil, domStyle, View, Heading, RoundRectList, ListItem, Switch, RoundRectCategory, ContentPane, url, connect, SimpleDialog, dom, Button, TextBox, GridLayout, on)
                 {
                     parser.parse();
+                    var g_timing_view = null;
                     var g_boatListTickFinish = new Array();
                     var g_boatListTickStart= new Array();
                     var g_boatListTimeStart= new Array();
@@ -226,12 +229,55 @@
                     {
                         createTickBoatView(view, "start", getBoatListTickStart, updateTickBoatStartState);
                     }
+                    function createBoatTimingView(view)
+                    {
+                        var location = "start";
+                        if(view.hasChildren())
+                        {
+                            view.destroyDescendants();
+                        }
+                        view.addChild( new Heading({label:view.boat.label+" "+location+" time", back:"Back to "+location+" list", moveTo:view.src.id}));
+                        //view.boat.boat_id;
+                        var grid = new GridLayout({cols:1});
+                        var txtBox = new TextBox({trim:true, selectOnClick:true});
+                        setTimeout(function(){
+                                txtBox.focus();
+                        }, 100);
+                        var txtPane = new ContentPane({content:"Time (MMSS):"});
+                        txtPane.addChild(txtBox);
+                        grid.addChild(txtPane);
+                        var pane = new ContentPane();
+                        var btnOK = new Button({label: "OK",style:"width:30%;float:left;", onClick: function(e)
+                            {
+                                console.log("Value: "+txtBox.get("value"));
+                                //TODO: Confirmation and upload then transition back
+                                view.boat.set("icon","images/tick16.png");
+                                view.performTransition(view.src.id,-1,"slide",null);
+                            }});
+                        txtBox.on("keydown", function(e){
+                            if(e.keyCode == 13 ) //Enter
+                            {
+                                btnOK.onClick();
+                            }
+                        });
+
+                        pane.addChild(btnOK);
+                        pane.addChild( new Button({label: "Cancel",style:"width:30%;float:right;", onClick: function(e)
+                            {
+                                view.performTransition(view.src.id,-1,"slide",null);
+                            }}));
+                        grid.addChild(pane);
+                        view.addChild(grid);
+                        //grid.focus.setFocusIndex(0,0);
+                        //txtPane.focus();
+                    }
                     function createBoatTimingStartView(view)
                     {
                         var location = "start";
                         var getBoats = getBoatListTimeStart;
                         if(!view.hasChildren())
                         {
+                            var timeTxt = registry.byId("timeTxt");
                             view.addChild( new Heading({label:"Enter boat "+location+" time", back:"Back to menu", moveTo:"mainMenu"}));
                             var list = RoundRectList();
                             view.addChild(list);
@@ -241,20 +287,9 @@
                                 var boat = new ListItem( { boat_id:b.id, noArrow:true, label:b.name, clickable:true});
                                 boat.onClick =  function(evt){ 
                                     console.log("OnClick boat");
-                                    dlg = registry.byId("ConfirmationDialog");
-                                    dom.byId("dialogContent").innerHTML = "Start time for "+this.label;                                    state = this;
-                                    domStyle.set(registry.byId("timeTxt").domNode, "visibility", "visible");
-                                    item = this;
-                                    registry.byId("confirmationDialogValidate").onClick = function(evt){
-                                        item.set("icon","images/tick16.png");
-                                        dlg.hide();
-                                        domStyle.set(registry.byId("timeTxt").domNode, "visibility", "hidden");
-                                    };
-                                    registry.byId("cancelDialogValidate").onClick = function(evt){
-                                        dlg.hide();
-                                        domStyle.set(registry.byId("timeTxt").domNode, "visibility", "hidden");
-                                    };
-                                    dlg.show();
+                                    g_timing_view.boat = this;
+                                    g_timing_view.src = view;
+                                    view.performTransition('boatTiming',1,'slide',null);
                                     };
 
                                 list.addChild( boat );
@@ -347,6 +382,8 @@
                     g_views.push( new View({ id: "changeDivision", prepareView: createChangeDivisionView}));
                     g_views.push( new View({ id: "confirm", prepareView: createConfirmView }));
                     g_views.push( new View({ id: "boatTimingStart", prepareView: createBoatTimingStartView}));
+                    g_timing_view = new View({ id: "boatTiming", prepareView: createBoatTimingView});
+                    g_views.push( g_timing_view);
                     var viewList = registry.byId('viewList');
                     selectedView = url.get("tab");
                     var found = false;
@@ -377,7 +414,8 @@
 
                     connect.subscribe("/dojox/mobile/beforeTransitionIn", function( view, moveTo, dir, transition, context, method){
                         console.log("Moving to "+moveTo);
-                        url.set("tab", view.id);
+                        if( view.id != "boatTiming")
+                            url.set("tab", view.id);
                         if( view.prepareView )
                         {
                             view.prepareView(view);
@@ -395,7 +433,6 @@
         <div id="ConfirmationDialog" data-dojo-type="dojox/mobile/SimpleDialog">
               <div class="mblSimpleDialogTitle">Are you sure ?</div>
               <div class="mblSimpleDialogText" id="dialogContent"></div>
-                  <input data-dojo-type="dojox/mobile/TextBox" id="timeTxt" value="" style="visibility:hidden;"><br>
                   <button data-dojo-type="dojox/mobile/Button" id="confirmationDialogValidate" class="mblSimpleDialogButton"
                     style="width:100px;">Yes</button>
                   <button data-dojo-type="dojox/mobile/Button" id="cancelDialogValidate"  class="mblSimpleDialogButton"
