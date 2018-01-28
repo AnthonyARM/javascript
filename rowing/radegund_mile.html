@@ -15,10 +15,55 @@
                                       parseOnLoad: false}]" >
         </script>
         <script>
+        function getNumDivisions()
+        {
+            console.log("TODO: num divisions");
+            return 3;
+        }
+        var g_boatList = new Array();
+        function getBoatList(division)
+        {
+            if( g_boatList.length == 0 )
+            {
+                console.log("TODO: get boat list");
+                var div = 100 * division;
+                for(var i=div; i < div+20; i++)
+                {
+                    //TODO: use onCourse to indicate when a boat is racing or rowing down to the start
+                    g_boatList.push({id:i, name:"Boat "+i, passedFinish: false, passedStart: false, startTime: "", finishTime: ""});
+                }
+            }
+            return g_boatList;
+        }
+        function updateTickBoatFinishState( id, state)
+        {
+            console.log("TODO: Finish: set boat " +id+" to "+state);
+            for( var b of g_boatList)
+            {
+                if(b.id == id)
+                {
+                    b.state = state;
+                    return;
+                }
+            }
+        }
+        function updateTickBoatStartState( id, state)
+        {
+            console.log("TODO: Start: set boat " +id+" to "+state);
+            for( var b of g_boatList)
+            {
+                if(b.id == id)
+                {
+                    b.state = state;
+                    return;
+                }
+            }
+        }
         function create_main_layout()
         {
                 require(["dojox/mobile/parser",
                     "dijit/registry",
+                    "dojo/dom-style",
                     "dojox/mobile/View",
                     "dojox/mobile/Heading",
                     "dojox/mobile/RoundRectList",
@@ -31,82 +76,217 @@
                     "dojox/mobile/SimpleDialog",
                     "dojo/dom",
                     "dojox/mobile/Button",
+                    "dojox/mobile/TextBox",
                     "dojo/on",
                     "dojox/mobile/compat",
                     "dojo/domReady!",
 
                     ],
-                function(parser, registry, View, Heading, RoundRectList, ListItem, Switch, RoundRectCategory, Pane, url, connect, SimpleDialog, dom, Button, on)
+                function(parser, registry, domStyle, View, Heading, RoundRectList, ListItem, Switch, RoundRectCategory, Pane, url, connect, SimpleDialog, dom, Button, TextBox, on)
                 {
                     parser.parse();
-                    if(! url.get("tab"))
+                    var g_boatListTickFinish = new Array();
+                    var g_boatListTickStart= new Array();
+                    var g_boatListTimeStart= new Array();
+                    var g_boatListTimeFinish= new Array();
+                    var g_division = 1;
+                    var g_views = new Array();
+                    function getDivision()
                     {
-                        url.set("tab","mainMenu");
+                        return g_division;
                     }
-                    var g_boatList = new Array();
-                    function getBoatList()
+                    function setDivision( new_div )
                     {
-                        if( g_boatList.length == 0 )
+                        if( new_div == getDivision)
+                            return;
+                        g_division = new_div;
+                        url.set("div",new_div);
+
+                        g_boatList = new Array();
+                        g_boatListTickFinish = new Array();
+                        g_boatListTickStart= new Array();
+                        g_boatListTimeStart= new Array();
+                        g_boatListTimeFinish= new Array();
+                        for(var v of g_views)
                         {
-                            console.log("TODO: get boat list");
-                            for(var i=0; i < 20; i++)
-                            {
-                                g_boatList.push({id:i, name:"Boat "+i, state:"off"});
-                            }
-                        }
-                        return g_boatList;
-                    }
-                    function updateTickBoatFinishState( id, state)
-                    {
-                        console.log("TODO: set boat " +id+" to "+state);
-                        for( var b of g_boatList)
-                        {
-                            if(b.id == id)
-                            {
-                                b.state = state;
-                                return;
-                            }
+                            v.destroyDescendants();
                         }
                     }
+                    function getBoatListTickFinish()
+                    {
+                        if( g_boatListTickFinish.length == 0 )
+                        {
+                            var boats = getBoatList(getDivision());
+                            for(var b of boats)
+                            {
+                                state = "off";
+                                if(b.passedFinish)
+                                {
+                                    state = "on";
+                                }
+                                g_boatListTickFinish.push({id:b.id, name:b.name, state:state, onCourse: false});
+                            }
+                        }
+                        return g_boatListTickFinish;
+                    }
+                    function getBoatListTickStart()
+                    {
+                        if( g_boatListTickStart.length == 0 )
+                        {
+                            var boats = getBoatList(getDivision());
+                            for(var b of boats)
+                            {
+                                state = "off";
+                                if(b.passedStart)
+                                {
+                                    state = "on";
+                                }
+                                g_boatListTickStart.push({id:b.id, name:b.name, state:state, onCourse:b.passedFinish});
+                            }
+                        }
+                        return g_boatListTickStart;
+                    }
+                    function getBoatListTimeStart()
+                    {
+                        if( g_boatListTimeStart.length == 0 )
+                        {
+                            var boats = getBoatList(getDivision());
+                            for(var b of boats)
+                            {
+                                if(b.passedFinish)
+                                {
+                                    g_boatListTimeStart.push({id:b.id, name:b.name});
+                                }
+                            }
+                            for(var b of boats)
+                            {
+                                if(!b.passedFinish)
+                                {
+                                    g_boatListTimeStart.push({id:b.id, name:b.name});
+                                }
+                            }
+                        }
+                        return g_boatListTimeStart;
+                    }
+
                     function createMenuView(view)
                     {
                         console.log("Create menu view");
-                        var results = new ListItem({
-                            rightText: "Results",
-                            moveTo:"boatTicking"});
-                        view.addChild(new Heading({label:"Radegund Mile 2018"}));
-                        var menu = new RoundRectList();
-                        view.addChild(menu);
-                        menu.addChild( new ListItem( { rightText:"Tick boats at finish", moveTo:"boatTickingFinish"}));
-                        menu.addChild( new ListItem( { rightText:"Tick boats at start", moveTo:"boatTickingStart"}));
-                        menu.addChild( new ListItem( { rightText:"Time boats at start", moveTo:"boatTimingStart"}));
-                        menu.addChild( new ListItem( { rightText:"Time boats at finish", moveTo:"boatTimingFinish"}));
-                        view.prepareView = null;
-                    }
-
-                    function createTickBoatFinishView(view)
-                    {
-                        console.log("Create tick boats finish view");
-                        console.log(view);
                         if(!view.hasChildren())
                         {
-                            var confirmView= registry.byId('confirm');
-                            view.addChild( new Heading({label:"Tick boats at finish", back:"Back to menu", moveTo:"mainMenu"}));
+                            var results = new ListItem({
+                            rightText: "Results",
+                            moveTo:"boatTicking"});
+                            view.addChild(new Heading({label:"Radegund Mile 2018"}));
+                            var menu = new RoundRectList();
+                            view.addChild(menu);
+                            menu.addChild( new ListItem( { rightText:"Tick boats at finish", moveTo:"boatTickingFinish"}));
+                            menu.addChild( new ListItem( { rightText:"Tick boats at start", moveTo:"boatTickingStart"}));
+                            menu.addChild( new ListItem( { rightText:"Time boats at start", moveTo:"boatTimingStart"}));
+                            menu.addChild( new ListItem( { rightText:"Time boats at finish", moveTo:"boatTimingFinish"}));
+                            menu.addChild( new ListItem( { rightText:"Change division", moveTo:"changeDivision"}));
+                        }
+                    }
+
+                    function createChangeDivisionView(view)
+                    {
+                        if(!view.hasChildren())
+                        {
+                            view.addChild( new Heading({label:"Switch to a different division", back:"Back to menu", moveTo:"mainMenu"}));
+                            var list = RoundRectList({ stateful: true, select:"single"});
+                            var current_div = getDivision();
+                            for( var div=1; div <= getNumDivisions(); div++)
+                            {
+                                var item = new ListItem( { div_id:div, noArrow:true, clickable:true, label:"Division "+div, selected:div==current_div});
+                                list.addChild(item);
+                            }
+                            view.addChild(list);
+                            view.addChild( new Button({label: "OK",style:"width:30%;float:left;", onClick: function(e)
+                                {
+                                    for( var div of list.getChildren())
+                                    {
+                                        if( div.selected)
+                                        {
+                                            setDivision(div.div_id);
+                                            view.performTransition('mainMenu',-1,"slide",null);
+                                        }
+                                    }
+                                }}));
+                            view.addChild( new Button({label: "Cancel",style:"width:30%;float:right;", onClick: function(e)
+                                {
+                                    view.performTransition('mainMenu',-1,"slide",null);
+                                }}));
+                        }
+                    }
+                    function createTickBoatFinishView(view)
+                    {
+                        createTickBoatView(view, "finish", getBoatListTickFinish, updateTickBoatFinishState);
+                    }
+                    function createTickBoatStartView(view)
+                    {
+                        createTickBoatView(view, "start", getBoatListTickStart, updateTickBoatStartState);
+                    }
+                    function createBoatTimingStartView(view)
+                    {
+                        var location = "start";
+                        var getBoats = getBoatListTimeStart;
+                        if(!view.hasChildren())
+                        {
+                            view.addChild( new Heading({label:"Enter boat "+location+" time", back:"Back to menu", moveTo:"mainMenu"}));
                             var list = RoundRectList();
                             view.addChild(list);
-                            boatList = getBoatList();
+                            boatList = getBoats();
                             for(var b of boatList)
                             {
-                                var boat = new ListItem( { boat_id:b.id, noArrow:true, label:b.name,  clickable:true});
+                                var boat = new ListItem( { boat_id:b.id, noArrow:true, label:b.name, clickable:true});
+                                boat.onClick =  function(evt){ 
+                                    console.log("OnClick boat");
+                                    dlg = registry.byId("ConfirmationDialog");
+                                    dom.byId("dialogContent").innerHTML = "Start time for "+this.label;                                    state = this;
+                                    domStyle.set(registry.byId("timeTxt").domNode, "visibility", "visible");
+                                    item = this;
+                                    registry.byId("confirmationDialogValidate").onClick = function(evt){
+                                        item.set("icon","images/tick16.png");
+                                        dlg.hide();
+                                        domStyle.set(registry.byId("timeTxt").domNode, "visibility", "hidden");
+                                    };
+                                    registry.byId("cancelDialogValidate").onClick = function(evt){
+                                        dlg.hide();
+                                        domStyle.set(registry.byId("timeTxt").domNode, "visibility", "hidden");
+                                    };
+                                    dlg.show();
+                                    };
+
+                                list.addChild( boat );
+                            }
+                        }
+                    }
+                    function createTickBoatView(view, location, getBoats, updateState)
+                    {
+                        console.log("Create tick boats finish view");
+                        if(!view.hasChildren())
+                        {
+                            view.addChild( new Heading({label:"Tick boats at the "+location, back:"Back to menu", moveTo:"mainMenu"}));
+                            var list = RoundRectList();
+                            view.addChild(list);
+                            boatList = getBoats();
+                            for(var b of boatList)
+                            {
+                                var icon="";
+                                if( b.onCourse )
+                                {
+                                    icon="images/tick16.png";
+                                }
+                                var boat = new ListItem( { boat_id:b.id, noArrow:true, label:b.name, icon:icon, clickable:true});
                                 var button = new Switch({ rightLabel:"Waiting", boat: boat, value:b.state, leftLabel:"Passed", onStateChanged: function(new_state){
                                     dlg = registry.byId("ConfirmationDialog");
                                     if(new_state == "on")
-                                        dom.byId("dialogContent").innerHTML = this.boat.label + " passed the finish line ?";
+                                        dom.byId("dialogContent").innerHTML = this.boat.label + " passed the "+location+" line ?";
                                     else
                                         dom.byId("dialogContent").innerHTML = "Reset state of "+this.boat.label + " ?";
                                     state = this;
                                     registry.byId("confirmationDialogValidate").onClick = function(evt){
-                                        updateTickBoatFinishState(state.boat.id, new_state);
+                                        updateState(state.boat.boat_id, new_state);
                                         dlg.hide();};
                                     registry.byId("cancelDialogValidate").onClick = function(evt){
 
@@ -135,11 +315,6 @@
                                     }
                                     };
 
-                                /*var boat = new ListItem( { boat_id:i, rightText: "Boat "+i,  moveTo:"mainMenu", onClick: function(evt){ 
-                                    confirmView.boat = this;
-                                    }});
-                                    */
-                                //connect.connect(boat, "onClick", function (){ console.log("FOOOOO");});
                                 list.addChild( boat );
                             }
                         }
@@ -153,26 +328,49 @@
                         }
                     }
 
-                    var views = new Array();
-                    views.push( new View({ id: "mainMenu", prepareView: createMenuView}));
-                    views.push( new View({ id: "boatTickingFinish", prepareView: createTickBoatFinishView}));
-                    views.push( new View({ id: "boatTickingStart", prepareView: function(view){ console.log("prepareView!");}}));
-                    views.push( new View({ id: "confirm", prepareView: createConfirmView }));
+                    if(! url.get("tab"))
+                    {
+                        url.set("tab","mainMenu");
+                    }
+                    var div = url.get("div");
+                    if (!div || div < 1 || div > getNumDivisions())
+                    {
+                        setDivision(1);
+                    }
+                    else
+                    {
+                        setDivision( url.get("div"));
+                    }
+                    g_views.push( new View({ id: "mainMenu", prepareView: createMenuView}));
+                    g_views.push( new View({ id: "boatTickingFinish", prepareView: createTickBoatFinishView}));
+                    g_views.push( new View({ id: "boatTickingStart", prepareView: createTickBoatStartView}));
+                    g_views.push( new View({ id: "changeDivision", prepareView: createChangeDivisionView}));
+                    g_views.push( new View({ id: "confirm", prepareView: createConfirmView }));
+                    g_views.push( new View({ id: "boatTimingStart", prepareView: createBoatTimingStartView}));
                     var viewList = registry.byId('viewList');
                     selectedView = url.get("tab");
-                    for( var v of views)
+                    var found = false;
+                    for( var v of g_views)
                     {
                         if( v.id == selectedView )
                         {
+                            found = true;
                             v.selected = true;
                             v.prepareView(v);
                             viewList.addChild(v);
                         }
                     }
-                    for( var v of views)
+                    for( var v of g_views)
                     {
                         if( v.id != selectedView )
                         {
+                            if(!found)
+                            {
+                                v.selected = true;
+                                found = true;
+                                url.set("tab", v.id);
+                                v.prepareView(v);
+                            }
                             viewList.addChild(v);
                         }
                     }
@@ -186,52 +384,6 @@
                         }
                     });
                 });
-            /*
-            <!--
-        <!-- the view or "page"; select it as the "home" screen -->
-        <div id="menuView" data-dojo-type="dojox/mobile/View" data-dojo-props="selected:true">
-        <!-- a sample heading -->
-        <h1 data-dojo-type="dojox/mobile/Heading">Radegund Mile 2018</h1>
-        <!-- a rounded rectangle list container -->
-        <ul data-dojo-type="dojox/mobile/RoundRectList" id='menuList'>
-            <!-- list item with an icon that slides this view away and then loads another page -->
-            <li data-dojo-type="dojox/mobile/ListItem"
-                data-dojo-props="rightText:'Boat Timing (Start)', moveTo:'boatTicking'"></li>
-            <li data-dojo-type="dojox/mobile/ListItem"
-                data-dojo-props="rightText:'Boat Timing (Finish)', moveTo:'boatTicking'"></li>
-            <!-- list item with an icon that slides to a view called "boatTicking" -->
-            <li data-dojo-type="dojox/mobile/ListItem"
-                data-dojo-props="rightText:'Boat Ticking (Start)', moveTo:'boatTicking'"></li>
-            <li data-dojo-type="dojox/mobile/ListItem"
-                data-dojo-props="rightText:'Boat Ticking (Finish)', moveTo:'boatTicking'"></li>
-        </ul>
-        </div>
-        </div>
-        <!-- The "General" sub-page -->
-        <div id="boatTicking" data-dojo-type="dojox/mobile/View">
-            <!-- a sample heading -->
-            <h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="back:'Menu', moveTo:'menuView'">Boat Ticking</h1>
-            <!-- a rounded rectangle list container -->
-            <ul data-dojo-type="dojox/mobile/RoundRectList">
-                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="moveTo:'about'">About</li>
-                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'2h 40m', moveTo:'about'">Usage</li>
-            </ul>
-        </div>
-        <!-- And let's add another view "About" -->
-        <div id="about" data-dojo-type="dojox/mobile/View">
-            <!-- Main view heading -->
-            <h1 data-dojo-type="dojox/mobile/Heading" data-dojo-props="back:'General', moveTo:'boatTicking'">About</h1>
-            <!-- subheading -->
-            <h2 data-dojo-type="dojox/mobile/RoundRectCategory">Generic Mobile Device</h2>
-            <!-- a rounded rectangle list container -->
-            <ul data-dojo-type="dojox/mobile/RoundRectList">
-                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'AcmePhone'">Network</li>
-                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'AcmePhone'">Line</li>
-                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'1024'">Songs</li>
-                <li data-dojo-type="dojox/mobile/ListItem" data-dojo-props="rightText:'10'">Videos</li>
-            </ul>
-            --!>
-            */
         }
         create_main_layout();
         </script>
@@ -243,6 +395,7 @@
         <div id="ConfirmationDialog" data-dojo-type="dojox/mobile/SimpleDialog">
               <div class="mblSimpleDialogTitle">Are you sure ?</div>
               <div class="mblSimpleDialogText" id="dialogContent"></div>
+                  <input data-dojo-type="dojox/mobile/TextBox" id="timeTxt" value="" style="visibility:hidden;"><br>
                   <button data-dojo-type="dojox/mobile/Button" id="confirmationDialogValidate" class="mblSimpleDialogButton"
                     style="width:100px;">Yes</button>
                   <button data-dojo-type="dojox/mobile/Button" id="cancelDialogValidate"  class="mblSimpleDialogButton"
