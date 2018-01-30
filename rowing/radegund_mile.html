@@ -15,49 +15,55 @@
                                       parseOnLoad: false}]" >
         </script>
         <script>
-        function getNumDivisions()
+        function server(params, cb)
         {
-            console.log("TODO: num divisions");
-            return 3;
+            require([
+            'dojo/_base/xhr',
+            'dojo/json',
+            ], function(xhr,json) {
+            xhr.post({
+                    // The URL of the request
+                    url:"https://script.google.com/macros/s/AKfycbwMpjdVD-UI_g6gglp3gD_z_JHf9UaNbIztXAei9j_ts2sOcQ/exec",
+                    headers: {
+                                "X-Requested-With": null
+                            },
+                    // No content property -- just send the entire form
+                    content: params,
+                    // The success handler
+                    load: function(response)
+                    {
+                            if( response == 0 )
+                            {
+                                    console.log("ERROR in "+params.query);
+                            }
+                            else
+                            {
+                                //console.log("response : "+response);
+                                cb( json.parse( response, true ));
+                            }
+                    }
+            });
+            });
+        }
+    server({wanted:"get_all"},function( g_raw_data )
+    {
+        function getNumDivisions(cb)
+        {
+            return g_raw_data["num_divisions"];
         }
         var g_boatList = new Array();
         function getBoatList(division)
         {
             if( g_boatList.length == 0 )
             {
-                console.log("TODO: get boat list");
-                var div = 100 * division;
-                for(var i=div; i < div+20; i++)
+                console.log("Reloading g_boatList");
+                var div_boats = g_raw_data[ division ];
+                for( var b of div_boats)
                 {
-                    //TODO: use onCourse to indicate when a boat is racing or rowing down to the start
-                    g_boatList.push({id:i, name:"Boat "+i, passedFinish: false, passedStart: false, startTime: "", finishTime: ""});
+                    g_boatList.push(b);
                 }
             }
             return g_boatList;
-        }
-        function updateTickBoatFinishState( id, state)
-        {
-            console.log("TODO: Finish: set boat " +id+" to "+state);
-            for( var b of g_boatList)
-            {
-                if(b.id == id)
-                {
-                    b.state = state;
-                    return;
-                }
-            }
-        }
-        function updateTickBoatStartState( id, state)
-        {
-            console.log("TODO: Start: set boat " +id+" to "+state);
-            for( var b of g_boatList)
-            {
-                if(b.id == id)
-                {
-                    b.state = state;
-                    return;
-                }
-            }
         }
         function create_main_layout()
         {
@@ -98,6 +104,68 @@
                     {
                         return g_division;
                     }
+                    function setTime(id, time, location, cb)
+                    {
+                        var sheetRow=-1;
+                        for( var b of g_raw_data[getDivision()])
+                        {
+                            if(b.id == id)
+                            {
+                                sheetRow = b.sheetRow;
+                                if(location == "start")
+                                {
+                                    b.startTime = time;
+                                }
+                                else
+                                {
+                                    b.finishTime = time;
+                                }
+                                break;
+                            }
+                        }
+                        if( sheetRow > 0)
+                        {
+                            server({wanted:"set_time", location:location, time:time, id:sheetRow}, cb);
+                        }
+                        else
+                        {
+                            console.log("ERROR Couldn't find sheetRow");
+                            cb();
+                        }
+                    }
+                    function updateTickBoatState( id, state, location, cb)
+                    {
+                        var sheetRow=-1;
+                        for( var b of g_raw_data[getDivision()])
+                        {
+                            if(b.id == id)
+                            {
+                                sheetRow = b.sheetRow;
+                                if( location == "start")
+                                {
+                                    b["passedStart"] = state;
+                                }
+                                break;
+                            }
+                        }
+                        if( sheetRow > 0)
+                        {
+                            server({wanted:"tick_boat", location:location, id:sheetRow, state:state}, cb);
+                        }
+                        else
+                        {
+                            console.log("ERROR Couldn't find sheetRow");
+                            cb();
+                        }
+                    }
+                    function updateTickBoatFinishState( id, state, cb)
+                    {
+                        updateTickBoatState( id, state, "finish", cb);
+                    }
+                    function updateTickBoatStartState( id, state, cb)
+                    {
+                        updateTickBoatState( id, state, "start", cb);
+                    }
                     function setDivision( new_div )
                     {
                         if( new_div == getDivision)
@@ -119,6 +187,7 @@
                     {
                         if( g_boatListTickFinish.length == 0 )
                         {
+                            console.log("Reloading g_boatListTickFinish");
                             var boats = getBoatList(getDivision());
                             for(var b of boats)
                             {
@@ -127,7 +196,7 @@
                                 {
                                     state = "on";
                                 }
-                                g_boatListTickFinish.push({id:b.id, name:b.name, state:state, onCourse: false});
+                                g_boatListTickFinish.push({id:b.id, name:b.name, state:state, onCourse:b.passedFinish});
                             }
                         }
                         return g_boatListTickFinish;
@@ -136,6 +205,7 @@
                     {
                         if( g_boatListTickStart.length == 0 )
                         {
+                            console.log("Reloading g_boatListTickStart");
                             var boats = getBoatList(getDivision());
                             for(var b of boats)
                             {
@@ -149,23 +219,54 @@
                         }
                         return g_boatListTickStart;
                     }
+                    function getBoatListTimeFinish()
+                    {
+                        if( g_boatListTimeFinish.length == 0 )
+                        {
+                            console.log("Reloading g_boatListTimeFinish");
+                            var boats = getBoatList(getDivision());
+                            for(var b of boats)
+                            {
+                                if(b.startTime != "")
+                                {
+                                    g_boatListTimeFinish.push({id:b.id, name:b.name, onCourse:b.startTime!=""});
+                                }
+                            }
+                            for(var b of boats)
+                            {
+                                if(b.startTime == "" && b.passedFinish)
+                                {
+                                    g_boatListTimeFinish.push({id:b.id, name:b.name, onCourse:b.startTime!=""});
+                                }
+                            }
+                            for(var b of boats)
+                            {
+                                if(b.startTime == "" && !b.passedFinish)
+                                {
+                                    g_boatListTimeFinish.push({id:b.id, name:b.name, onCourse:b.startTime!=""});
+                                }
+                            }
+                        }
+                        return g_boatListTimeFinish;
+                    }
                     function getBoatListTimeStart()
                     {
                         if( g_boatListTimeStart.length == 0 )
                         {
+                            console.log("Reloading g_boatListTimeStart");
                             var boats = getBoatList(getDivision());
                             for(var b of boats)
                             {
                                 if(b.passedFinish)
                                 {
-                                    g_boatListTimeStart.push({id:b.id, name:b.name});
+                                    g_boatListTimeStart.push({id:b.id, name:b.name, onCourse:b.startTime!=""});
                                 }
                             }
                             for(var b of boats)
                             {
                                 if(!b.passedFinish)
                                 {
-                                    g_boatListTimeStart.push({id:b.id, name:b.name});
+                                    g_boatListTimeStart.push({id:b.id, name:b.name, onCourse:b.startTime!=""});
                                 }
                             }
                         }
@@ -229,17 +330,16 @@
                     {
                         createTickBoatView(view, "start", getBoatListTickStart, updateTickBoatStartState);
                     }
-                    function createBoatTimingView(view)
+                    function createEnterTimeView(view)
                     {
-                        var location = "start";
+                        var location = view.location;
                         if(view.hasChildren())
                         {
                             view.destroyDescendants();
                         }
                         view.addChild( new Heading({label:view.boat.label+" "+location+" time", back:"Back to "+location+" list", moveTo:view.src.id}));
-                        //view.boat.boat_id;
                         var grid = new GridLayout({cols:1});
-                        var txtBox = new TextBox({trim:true, selectOnClick:true});
+                        var txtBox = new TextBox({trim:true, selectOnClick:true, maxlength:"4", type:"number"});
                         setTimeout(function(){
                                 txtBox.focus();
                         }, 100);
@@ -250,9 +350,25 @@
                         var btnOK = new Button({label: "OK",style:"width:30%;float:left;", onClick: function(e)
                             {
                                 console.log("Value: "+txtBox.get("value"));
-                                //TODO: Confirmation and upload then transition back
-                                view.boat.set("icon","images/tick16.png");
-                                view.performTransition(view.src.id,-1,"slide",null);
+                                var dlg = registry.byId("ConfirmationDialog");
+                                var time = txtBox.get("value");
+                                for( var l= time.length; l < 4; l++)
+                                {
+                                    time = "0"+time;
+                                }
+                                dom.byId("dialogContent").innerHTML = view.boat.boat_id + " passed the "+location+" line at "+time+" ?";
+                                registry.byId("confirmationDialogValidate").onClick = function(evt){
+                                setTime(view.boat.boat_id, time, view.location, function(){
+                                    dlg.hide();
+                                    view.boat.set("icon","images/tick16.png");
+                                    view.performTransition(view.src.id,-1,"slide",null);
+                                });
+                                };
+                                registry.byId("cancelDialogValidate").onClick = function(evt){
+                                    dlg.hide();
+                                    view.performTransition(view.src.id,-1,"slide",null);
+                                };
+                                dlg.show();
                             }});
                         txtBox.on("keydown", function(e){
                             if(e.keyCode == 13 ) //Enter
@@ -273,8 +389,14 @@
                     }
                     function createBoatTimingStartView(view)
                     {
-                        var location = "start";
-                        var getBoats = getBoatListTimeStart;
+                        createBoatTimingView(view, "start", getBoatListTimeStart);
+                    }
+                    function createBoatTimingFinishView(view)
+                    {
+                        createBoatTimingView(view, "finish", getBoatListTimeFinish);
+                    }
+                    function createBoatTimingView(view, location, getBoats)
+                    {
                         if(!view.hasChildren())
                         {
                             var timeTxt = registry.byId("timeTxt");
@@ -284,11 +406,17 @@
                             boatList = getBoats();
                             for(var b of boatList)
                             {
-                                var boat = new ListItem( { boat_id:b.id, noArrow:true, label:b.name, clickable:true});
+                                var icon = "";
+                                if( b.onCourse )
+                                {
+                                    icon="images/tick16.png";
+                                }
+                                var boat = new ListItem( { boat_id:b.id, noArrow:true, label:b.name,icon:icon, clickable:true});
                                 boat.onClick =  function(evt){ 
                                     console.log("OnClick boat");
                                     g_timing_view.boat = this;
                                     g_timing_view.src = view;
+                                    g_timing_view.location = location;
                                     view.performTransition('boatTiming',1,'slide',null);
                                     };
 
@@ -314,15 +442,17 @@
                                 }
                                 var boat = new ListItem( { boat_id:b.id, noArrow:true, label:b.name, icon:icon, clickable:true});
                                 var button = new Switch({ rightLabel:"Waiting", boat: boat, value:b.state, leftLabel:"Passed", onStateChanged: function(new_state){
-                                    dlg = registry.byId("ConfirmationDialog");
+                                    var dlg = registry.byId("ConfirmationDialog");
                                     if(new_state == "on")
                                         dom.byId("dialogContent").innerHTML = this.boat.label + " passed the "+location+" line ?";
                                     else
                                         dom.byId("dialogContent").innerHTML = "Reset state of "+this.boat.label + " ?";
                                     state = this;
                                     registry.byId("confirmationDialogValidate").onClick = function(evt){
-                                        updateState(state.boat.boat_id, new_state);
-                                        dlg.hide();};
+                                    updateState(state.boat.boat_id, new_state, function(){
+                                        dlg.hide();
+                                    });
+                                    };
                                     registry.byId("cancelDialogValidate").onClick = function(evt){
 
                                         if(new_state == "off")
@@ -382,7 +512,9 @@
                     g_views.push( new View({ id: "changeDivision", prepareView: createChangeDivisionView}));
                     g_views.push( new View({ id: "confirm", prepareView: createConfirmView }));
                     g_views.push( new View({ id: "boatTimingStart", prepareView: createBoatTimingStartView}));
-                    g_timing_view = new View({ id: "boatTiming", prepareView: createBoatTimingView});
+                    g_views.push( new View({ id: "boatTimingFinish", prepareView: createBoatTimingFinishView}));
+
+                    g_timing_view = new View({ id: "boatTiming", prepareView: createEnterTimeView});
                     g_views.push( g_timing_view);
                     var viewList = registry.byId('viewList');
                     selectedView = url.get("tab");
@@ -424,6 +556,7 @@
                 });
         }
         create_main_layout();
+    });
         </script>
     </head>
     <body style="visibility:hidden;" id="body">
