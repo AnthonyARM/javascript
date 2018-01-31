@@ -5,7 +5,7 @@
         <meta http-equiv="Content-type" content="text/html; charset=utf-8"/>
         <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,minimum-scale=1,user-scalable=no"/>
         <meta name="apple-mobile-web-app-capable" content="yes"/>
-        <title>Radegund Mile 2018</title>
+        <title>Newnham Short Course 2018</title>
         <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/dojo/1.13.0/dojox/mobile/deviceTheme.js"></script>
         <!-- load dojo and provide config via data attribute -->
         <script src="//ajax.googleapis.com/ajax/libs/dojo/1.13.0/dojo/dojo.js"
@@ -196,7 +196,7 @@
                                 {
                                     state = "on";
                                 }
-                                g_boatListTickFinish.push({id:b.id, name:b.name, state:state, onCourse:b.passedFinish});
+                                g_boatListTickFinish.push({id:b.id, name:b.name, state:state, onCourse:b.passedFinish, done:b.passedStart});
                             }
                         }
                         return g_boatListTickFinish;
@@ -214,7 +214,7 @@
                                 {
                                     state = "on";
                                 }
-                                g_boatListTickStart.push({id:b.id, name:b.name, state:state, onCourse:b.passedFinish});
+                                g_boatListTickStart.push({id:b.id, name:b.name, state:state, onCourse:b.passedFinish, done:b.passedStart});
                             }
                         }
                         return g_boatListTickStart;
@@ -281,7 +281,7 @@
                             var results = new ListItem({
                             rightText: "Results",
                             moveTo:"boatTicking"});
-                            view.addChild(new Heading({label:"Radegund Mile 2018"}));
+                            view.addChild(new Heading({label:"Newnham Short Course 2018"}));
                             var menu = new RoundRectList();
                             view.addChild(menu);
                             menu.addChild( new ListItem( { rightText:"Tick boats at finish", moveTo:"boatTickingFinish"}));
@@ -438,7 +438,14 @@
                                 var icon="";
                                 if( b.onCourse )
                                 {
-                                    icon="images/tick16.png";
+                                    if( b.done )
+                                    {
+                                        icon="images/tick16.png";
+                                    }
+                                    else
+                                    {
+                                        icon="images/rowing16.png";
+                                    }
                                 }
                                 var boat = new ListItem( { boat_id:b.id, noArrow:true, label:b.name, icon:icon, clickable:true});
                                 var button = new Switch({ rightLabel:"Waiting", boat: boat, value:b.state, leftLabel:"Passed", onStateChanged: function(new_state){
