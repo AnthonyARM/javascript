@@ -5,9 +5,9 @@ define( {
                           "dojox/geo/openlayers/GeometryFeature", "dojox/geo/openlayers/Point","dojo/_base/window","dojox/geo/openlayers/Collection",
                           "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", 
                           "dojo/_base/Color","dijit/form/MultiSelect", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form", 
-                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid' ],
+                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid',"dijit/form/Button" ],
                      function(ajax, utils, ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
-                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid){
+                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid, Button){
 
                 ready(function(){
 
@@ -59,8 +59,23 @@ define( {
                 ]],table);
                t.pieces.show( false );
 
-               t.PBs= new MyGrid("PBs", [[
-                  {'name': 'Id', 'field': 'id', hidden: true},
+                t.delete_piece_btn = new Button( { label:"Delete selected piece", onClick: function(){
+                    //Delete selected piece:
+                    console.log("Deleting : "+this.selected_piece);
+                    ajax.delete_piece(this.selected_piece, function()
+                        {
+                            console.log("DONE!");
+                            t.on_outing_selected();
+                        });
+                    
+                    }});
+                main.addChild(t.delete_piece_btn);
+                t.delete_piece_btn.show = function( show )
+                {
+                    t.delete_piece_btn.set("style","display:" + (show ? "block" : "none"));
+                };
+                t.delete_piece_btn.show( false );
+               t.PBs= new MyGrid("PBs", [[ {'name': 'Id', 'field': 'id', hidden: true},
                   {'name': 'Distance (m)','field':'distance', 'width':'100px'},
                   {'name': 'Projected','field':'projected', 'width':'100px'},
                   {'name': 'Start (m)','field':'start', 'width':'100px'},
@@ -112,10 +127,11 @@ define( {
                    }
                });
 
-               on( t.outings.grid, 'Selected', function(idx) {
+               t.on_outing_selected = function() {
                     var outing = t.outings.grid.selection.getSelected()[0];
                     ajax.get_pieces( outing.id, function( list ){
                        t.PBs.show( false );
+                       t.delete_piece_btn.show( false );
                        t.pieces.clear_store();
                         for( p of list ){
                             t.pieces.store.newItem(p);
@@ -123,6 +139,9 @@ define( {
                        t.pieces.grid.selection.clear();
                        t.pieces.show( true );
                     });
+                };
+               on( t.outings.grid, 'Selected', function(idx) {
+                   t.on_outing_selected();
                 });
                on( t.pieces.grid, 'Selected', function(idx) {
                     var piece = t.pieces.grid.selection.getSelected()[0];
@@ -133,6 +152,8 @@ define( {
                         }
                         t.PBs.grid.selection.clear();
                         t.PBs.show( true );
+                        t.delete_piece_btn.show( true );
+                        t.delete_piece_btn.selected_piece = piece.id;
                     });
                 });
                 /*
@@ -283,10 +304,11 @@ define( {
                     */
 
 
-            var filters = new MyFilters(main);
+            //var filters = new MyFilters(main);
             var selectionGrids = new SelectionGrids(main);
             var map = new MyMap(main);
 
+            /*
             on( filters.recent_selected, "Change", function(b){
                selectionGrids.outings.grid.selection.clear();
                selectionGrids.outings.show( b );
@@ -295,6 +317,7 @@ define( {
                selectionGrids.distanceBests.grid.selection.clear();
                selectionGrids.distanceBests.show(!b);
             });
+            */
             on( selectionGrids.PBs.grid, "Selected", function(idx){
                 var pb = selectionGrids.PBs.grid.selection.getSelected()[0];
                 //console.log("Selected ! "+pb.max_latitude);

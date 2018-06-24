@@ -33,6 +33,12 @@ function delete_crew()
         return db_execute_query_params("DELETE FROM Crews where id = ?", "d", [ $_POST['id']]);
 }
 
+function delete_piece()
+{
+        global $_POST;
+        return db_delete_piece($_POST['id']);
+}
+
 function update_crew()
 {
         global $_POST;
@@ -47,6 +53,7 @@ function update_crew()
 $requests = array (
         "new_crew" => function() { return new_crew(); },
         "delete_crew" => function() { return delete_crew(); },
+        "delete_piece" => function() { return delete_piece(); },
         "update_crew" => function() { return update_crew(); },
 );
 

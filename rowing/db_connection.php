@@ -65,7 +65,7 @@ function db_fetch_array( $res )
 function db_to_time( $time, $dec =0 )
 {
     //return $time;
-    return "cast(".$time."/60 as integer)||\"m\"||".db_truncate_float("cast(".$time." as float)",$dec)."||\"s\"";
+    return "cast(".$time."/60 as integer)||\"m\"||".db_truncate_float("cast(".$time." as float) % 60",$dec)."||\"s\"";
 	//return "printf(\"%dm%ds\", ".$time."/60, ".$time." % 60)";
 	//return "printf(\"%dh%dm%ds\",".$time."/3600, ".$time."%3600/60, ".$time." % 60)";
 }
@@ -123,6 +123,23 @@ function db_last_insert_id()
 {
 	global $mysqli;
 	return $mysqli->lastInsertRowID();
+}
+
+function db_delete_piece($piece_id)
+{
+	$ids= "?";
+	$query_args_types = "i";
+	$query_args = array();
+	$query_args []= $piece_id;
+
+	$query = "DELETE FROM PBs where piece_id =".$ids;
+	$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
+	$stmt->execute() or die( __LINE__." : ".$stmt->error."<br/>");
+	$stmt->close();
+
+	$query = "DELETE FROM Pieces where id = ".$ids;
+	$stmt = db_execute_query_params( $query, $query_args_types, $query_args);
+return $stmt;
 }
 
 function db_delete_outings($outing_ids)

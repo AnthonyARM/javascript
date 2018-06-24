@@ -73,6 +73,9 @@ define({
             add_crew : function (name, start_speed, end_speed, cb ){
                     execute_insert_query(cb, { query: "new_crew", name: name, start_speed: start_speed, end_speed: end_speed});
             },
+            delete_piece : function( id, cb){
+                execute_insert_query(cb, { query: "delete_piece", id: id } );
+            },
             delete_crew : function( id, cb){
                 execute_insert_query(cb, { query: "delete_crew", id: id } );
             },
