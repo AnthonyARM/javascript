@@ -15,7 +15,8 @@ $requests = array (
     INNER JOIN TrackPoints ends ON ends.id=Pieces.trackpoint_end
     WHERE Pieces.outing_id=".$_POST['outing_id'];},
     "get_pbs" => function() { return "SELECT PBs.*, pieces.min_latitude, pieces.max_latitude, pieces.min_longitude, 
-    pieces.max_longitude, ".db_to_time("PBs.duration")." as fmt_duration, 
+    pieces.max_longitude, ".db_to_time("PBs.duration", 1)." as fmt_duration, 
+    ".db_to_split("PBs.duration","PBs.distance")." as split_time,
     ".db_truncate_float("(starts.distance - piece_start.distance)",0)." as start, 
     ".db_truncate_float("(ends.distance - piece_start.distance)",0)." as end FROM PBs
     INNER JOIN TrackPoints starts ON starts.id=PBs.start_point

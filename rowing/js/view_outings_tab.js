@@ -68,6 +68,7 @@ define( {
                   {'name': 'Duration','field':'fmt_duration', 'width':'100px'},
                   {'name': 'Min speed (kph)','field':'min_speed', 'width':'100px'},
                   {'name': 'Max speed (kph)','field':'max_speed', 'width':'100px'},
+                  {'name': 'Split (/500m)','field':'split_time', 'width':'100px'},
                 ]],table);
                t.PBs.show( false );
 

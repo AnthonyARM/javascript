@@ -62,15 +62,25 @@ function db_fetch_array( $res )
 {
 	return $res->fetchArray();
 }
-function db_to_time( $time )
+function db_to_time( $time, $dec =0 )
 {
-	return "cast(".$time."/60 as integer)||\"m\"||cast(".$time."%60 as integer)||\"s\"";
+    //return $time;
+    return "cast(".$time."/60 as integer)||\"m\"||".db_truncate_float("cast(".$time." as float)",$dec)."||\"s\"";
 	//return "printf(\"%dm%ds\", ".$time."/60, ".$time." % 60)";
 	//return "printf(\"%dh%dm%ds\",".$time."/3600, ".$time."%3600/60, ".$time." % 60)";
 }
+function db_to_split( $time, $distance)
+{
+    return db_to_time( "500 * ".$time." / ".$distance, 1);
+}
 function db_truncate_float( $num, $dec)
 {
-	return "round(".$num.",".$dec.")";
+    if($dec == 0)
+    {
+        return "cast(".$num." as integer)";
+    }
+    else
+        return "round(".$num.",".$dec.")";
 	//return "printf(\"%.".$dec."f\",".$num.")";
 }
 
