@@ -142,6 +142,7 @@ show) ? "block" : "none"));
                             if( p.id == selected_piece)
                             {
                                 t.pieces.grid.selection.setSelected(idx, true);
+                                t.pieces.grid.scrollToRow(idx);
                                 selected_piece = null;
                             }
                             idx++;
@@ -166,6 +167,7 @@ show) ? "block" : "none"));
                             if( p.id == selected_dist )
                             {
                                 t.PBs.grid.selection.setSelected(idx, true);
+                                t.PBs.grid.scrollToRow(idx);
                                 selected_dist = null;
                             }
                             idx++;
@@ -183,6 +185,7 @@ show) ? "block" : "none"));
                        if(outing.id == selected_outing)
                        {
                            t.outings.grid.selection.setSelected(idx, true);
+                           t.outings.grid.scrollToRow(idx);
                            selected_outing= null;
                        }
                        idx++;
