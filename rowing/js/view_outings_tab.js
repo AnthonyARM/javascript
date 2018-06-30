@@ -72,7 +72,8 @@ define( {
                 main.addChild(t.delete_piece_btn);
                 t.delete_piece_btn.show = function( show )
                 {
-                    t.delete_piece_btn.set("style","display:" + (show ? "block" : "none"));
+                    t.delete_piece_btn.set("style","display:" + ((utils.is_trusted() &&
+show) ? "block" : "none"));
                 };
                 t.delete_piece_btn.show( false );
                t.PBs= new MyGrid("PBs", [[ {'name': 'Id', 'field': 'id', hidden: true},

@@ -12,5 +12,8 @@ define({
                 str += secs + " secs";
                 return str;
         },
+        is_trusted: function(){
+            return document.getElementById('error').getAttribute('trusted') == '1';
+        },
 });
 
