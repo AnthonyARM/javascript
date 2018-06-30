@@ -21,7 +21,7 @@ define( {
                             selectionMode: "single",
                             store: this.store,
                             structure: this.layout,
-                            style:"height:10em;"});
+                            style:"height:20em;"});
                main.addChild(this.grid);
             }
 
