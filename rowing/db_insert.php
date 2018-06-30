@@ -24,7 +24,7 @@ function validate_column_name( $column, $table )
 function new_crew()
 {
         global $_POST;
-        return db_execute_query_params("INSERT INTO Crews(name,start_threshold,end_threshold) VALUES (?,?,?)", "sdd", [ $_POST['name'], $_POST['start_speed'], $_POST['end_speed']]);
+        return db_execute_query_params("INSERT INTO Crews(name,start_threshold,end_threshold) VALUES (?,?,?)", "sdd", [ $_POST['name'], floatval($_POST['start_speed']), floatval($_POST['end_speed'])]);
 }
 
 function delete_crew()
@@ -46,8 +46,15 @@ function update_crew()
         {
             return null;
         }
-		 */
-        return db_execute_query_params("UPDATE Crews SET ".$_POST['field']."=? where id = ?", "si", [ $_POST['value'],$_POST['id']]);
+         */
+        $type = "s";
+        $value = $_POST['value'];
+        if( $_POST['field'] != "name")
+        {
+            $type = "d";
+            $value = floatval($value);
+        }
+        return db_execute_query_params("UPDATE Crews SET ".$_POST['field']."=? where id = ?", $type."s", [ $value,$_POST['id']]);
 }
 
 $requests = array (
