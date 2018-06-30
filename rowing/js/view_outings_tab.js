@@ -122,22 +122,30 @@ show) ? "block" : "none"));
 
                main.addChild(table);
 
-               ajax.get_outings( function(list){ 
-                   for( outing of list){
-                       t.outings.store.newItem(outing);
-                   }
-               });
-
+               var selected_dist = url.get('dist');
+               var selected_piece = url.get('piece');
+               var selected_outing = url.get('outing');
                t.on_outing_selected = function() {
                     var outing = t.outings.grid.selection.getSelected()[0];
+                    url.set("outing",outing.id);
+                    url.unset("piece");
+                    url.unset("dist");
                     ajax.get_pieces( outing.id, function( list ){
                        t.PBs.show( false );
                        t.delete_piece_btn.show( false );
                        t.pieces.clear_store();
-                        for( p of list ){
-                            t.pieces.store.newItem(p);
-                        }
                        t.pieces.grid.selection.clear();
+                       var idx = 0;
+                        for( p of list )
+                        {
+                            t.pieces.store.newItem(p);
+                            if( p.id == selected_piece)
+                            {
+                                t.pieces.grid.selection.setSelected(idx, true);
+                                selected_piece = null;
+                            }
+                            idx++;
+                        }
                        t.pieces.show( true );
                     });
                 };
@@ -146,17 +154,41 @@ show) ? "block" : "none"));
                 });
                on( t.pieces.grid, 'Selected', function(idx) {
                     var piece = t.pieces.grid.selection.getSelected()[0];
+                    url.set("piece",piece.id);
+                    url.unset("dist");
                     ajax.get_pbs( piece.id, function( list ){
                         t.PBs.clear_store();
-                        for( p of list ){
-                            t.PBs.store.newItem(p);
-                        }
                         t.PBs.grid.selection.clear();
+                        var idx=0;
+                        for( p of list )
+                        {
+                            t.PBs.store.newItem(p);
+                            if( p.id == selected_dist )
+                            {
+                                t.PBs.grid.selection.setSelected(idx, true);
+                                selected_dist = null;
+                            }
+                            idx++;
+                        }
                         t.PBs.show( true );
                         t.delete_piece_btn.show( true );
                         t.delete_piece_btn.selected_piece = piece.id;
                     });
                 });
+
+               ajax.get_outings( function(list){ 
+                   var idx=0;
+                   for( outing of list){
+                       t.outings.store.newItem(outing);
+                       if(outing.id == selected_outing)
+                       {
+                           t.outings.grid.selection.setSelected(idx, true);
+                           selected_outing= null;
+                       }
+                       idx++;
+                   }
+               });
+
                 /*
                     id
                     outing_id
@@ -321,6 +353,7 @@ show) ? "block" : "none"));
             */
             on( selectionGrids.PBs.grid, "Selected", function(idx){
                 var pb = selectionGrids.PBs.grid.selection.getSelected()[0];
+                url.set("dist",pb.id);
                 //console.log("Selected ! "+pb.max_latitude);
                 ajax.get_trackpoints( pb.start_point, pb.end_point, function( pts )
                 {

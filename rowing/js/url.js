@@ -14,6 +14,7 @@ define(["dojo/io-query", "dojo/hash"], function( ioQuery, hash )
                 _hashes[name] = value;
                 this.update();
             },
+            unset: function(name) { delete _hashes[name]; this.update();},
             hashes : _hashes,
             update: function(){
                 hash( ioQuery.objectToQuery(_hashes)); //set url
