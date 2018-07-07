@@ -5,9 +5,9 @@ define( {
                           "dojox/geo/openlayers/GeometryFeature", "dojox/geo/openlayers/Point","dojo/_base/window","dojox/geo/openlayers/Collection",
                           "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", 
                           "dojo/_base/Color","dijit/form/MultiSelect", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form", 
-                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid',"dijit/form/Button" ],
+                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid',"dijit/form/Button","dojox/form/HorizontalRangeSlider" ],
                      function(ajax, utils, ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
-                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid, Button){
+                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid, Button, HorizontalRangeSlider){
 
                 ready(function(){
 
@@ -78,13 +78,13 @@ show) ? "block" : "none"));
                 t.delete_piece_btn.show( false );
                t.PBs= new MyGrid("PBs", [[ {'name': 'Id', 'field': 'id', hidden: true},
                   {'name': 'Distance (m)','field':'distance', 'width':'100px'},
+                  {'name': 'Duration','field':'fmt_duration', 'width':'100px'},
+                  {'name': 'Split (/500m)','field':'split_time', 'width':'100px'},
+                  {'name': 'Max speed (kph)','field':'max_speed', 'width':'100px'},
+                  {'name': 'Min speed (kph)','field':'min_speed', 'width':'100px'},
                   {'name': 'Projected','field':'projected', 'width':'100px'},
                   {'name': 'Start (m)','field':'start', 'width':'100px'},
                   {'name': 'End (m)','field':'end', 'width':'100px'},
-                  {'name': 'Duration','field':'fmt_duration', 'width':'100px'},
-                  {'name': 'Min speed (kph)','field':'min_speed', 'width':'100px'},
-                  {'name': 'Max speed (kph)','field':'max_speed', 'width':'100px'},
-                  {'name': 'Split (/500m)','field':'split_time', 'width':'100px'},
                 ]],table);
                t.PBs.show( false );
 
@@ -208,6 +208,27 @@ show) ? "block" : "none"));
             }
 
             function MyMap(main){
+                var speed_range = new ContentPane({})
+                var This = this;
+                main.addChild(speed_range);
+                this.rangeSlider = new HorizontalRangeSlider({
+                        value: [15,19],
+                        minimum: 10,
+                        maximum: 25,
+                        discreteValues: 151,
+                        intermediateChanges: true,
+                        style: "width: 400px;",
+                        onClick: function(ev){
+                            This.redraw();
+                            url.set("min_speed", this.get("value")[0]);
+                            url.set("max_speed", this.get("value")[1]);
+                        },
+                        onChange: function(value){
+                                  speed_range.set("content", "Speed Range: "+ value);
+                        }
+                  });
+                this.rangeSlider.onChange(this.rangeSlider.get("value"));
+                main.addChild(this.rangeSlider);
                 var map_container = new ContentPane( { style:'height:100%; overflow:hidden;' });
                 main.addChild( map_container );
                 this.map = new Map(map_container.containerNode);
@@ -215,6 +236,82 @@ show) ? "block" : "none"));
                 this.layer = new GfxLayer();
                 // add layer to the map
                 this.map.addLayer(this.layer);
+                this.pts = []
+                this.redraw = function(pts) {
+                    if( typeof pts != "undefined")
+                    {
+                        This.pts = pts;
+                    }
+                    var min_speed = This.rangeSlider.get("value")[0] / 3.6; /* has to be m/s not kph */
+                    var diff_speed = (This.rangeSlider.get("value")[1] - This.rangeSlider.get("value")[0])/ 3.6;
+                    var prev = null;
+                    This.layer.clear();
+                    arr.forEach( This.pts, function(p)
+                    {
+                                var latitude = parseFloat( p.latitude );
+                                var longitude = parseFloat( p.longitude );
+                                var speed = parseFloat( p.speed );
+                                var ratio = (p.speed - min_speed ) / diff_speed;
+                                var colour = Color.blendColors( Color.fromArray([255,0,0]), Color.fromArray([0,255,0]), ratio);
+                                console.log(colour+" Ratio : "+ratio);
+
+                                if( prev)
+                                {
+                                        var diff_longitude = longitude - prev.longitude;
+                                        var diff_latitude = latitude - prev.latitude;
+
+                                        var start = prev;
+                                        for( var i = 0.25; i <= 1.0; i += 0.25 )
+                                        {
+                                                var new_pt = { longitude: prev.longitude + i*diff_longitude, 
+                                                        latitude:prev.latitude + i * diff_latitude, 
+                                                        colour: Color.blendColors( prev.colour, colour, i ) };
+
+                                                var line = new LineString( [{x:start.longitude,y:start.latitude},{x:new_pt.longitude,y:new_pt.latitude}]);
+                                                var f = new GeometryFeature(line);
+                                                f.setStroke({color: start.colour, width: 3});
+                                                map.layer.addFeature(f);
+                                                start = new_pt;
+                                        }
+
+                                }
+
+                                prev = { longitude: longitude, latitude:latitude, colour: colour};
+
+                            var pt = new Point( {x:longitude,y:latitude} );
+                            var f = new GeometryFeature(pt);
+                            var size = 2;
+                            // set the shape properties, fill and stroke
+                            //f.setFill([ 0, 128, 128 ]);
+                            f.setStroke([ 0, 0, 0, 1 ]);
+                            f.setShapeProperties({
+                              r : 2
+                            });
+                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, total dist: "+(p.distance / 1000).toFixed(2)+" km, piece distance: "+( p.distance - This.piece_start).toFixed(0)+", time: "+ utils.time_to_str(p.time);
+                            var p3 = new Point({x:longitude, y:latitude});
+                            var f3 = new GeometryFeature(p3);
+                            f3.createShape = function(s){
+                                return s.createText({text:(p.speed * 3.6).toFixed(2) + " kph, dist: "+( p.distance - This.piece_start).toFixed(0), align:"middle", y:4});
+                            };
+                            f3.setFill('black');
+                            // add the feature to the layer
+                            map.layer.addFeature(f);
+                            map.layer.addFeature(f3);
+                            f.getShape();
+                             pt.shape.connect("onmouseover",function(evt){
+                                             //evt.relatedTarget
+                                             Tooltip.show(pt.tooltip, {x:evt.pageX, y:evt.pageY, w:2, h:2});
+                                                });
+                             pt.shape.connect("onmouseout", function(){
+                                                                //FIXME: Doesn't work
+                                             Tooltip.hide(pt.shape);
+                                                        });
+                        });
+                    map.map.fitTo({
+                    bounds : This.bounds
+                    });
+                    This.layer.redraw();
+                };
             }
 
             function MyFilters(main)
@@ -341,6 +438,8 @@ show) ? "block" : "none"));
 
 
             //var filters = new MyFilters(main);
+            var selected_min_speed = url.get('min_speed');
+            var selected_max_speed = url.get('max_speed');
             var selectionGrids = new SelectionGrids(main);
             var map = new MyMap(main);
 
@@ -360,77 +459,19 @@ show) ? "block" : "none"));
                 //console.log("Selected ! "+pb.max_latitude);
                 ajax.get_trackpoints( pb.start_point, pb.end_point, function( pts )
                 {
-                        var min_speed = pb.min_speed / 3.6; /* has to be m/s not kph */
-                        var diff_speed = (pb.max_speed - pb.min_speed)/ 3.6;
-                        var prev = null;
-                        var piece_start = selectionGrids.pieces.grid.selection.getSelected()[0].start *1000;
-                        map.layer.clear();
-                        arr.forEach( pts, function(p)
-                        {
-                                var latitude = parseFloat( p.latitude );
-                                var longitude = parseFloat( p.longitude );
-                                var speed = parseFloat( p.speed );
-                                var ratio = (p.speed - min_speed ) / diff_speed;
-                                var colour = Color.blendColors( Color.fromArray([255,0,0]), Color.fromArray([0,255,0]), ratio);
-                                //console.log(colour+" Ratio : "+ratio);
-
-                                if( prev)
-                                {
-                                        var diff_longitude = longitude - prev.longitude;
-                                        var diff_latitude = latitude - prev.latitude;
-
-                                        var start = prev;
-                                        for( var i = 0.25; i <= 1.0; i += 0.25 )
-                                        {
-                                                var new_pt = { longitude: prev.longitude + i*diff_longitude, 
-                                                        latitude:prev.latitude + i * diff_latitude, 
-                                                        colour: Color.blendColors( prev.colour, colour, i ) };
-
-                                                var line = new LineString( [{x:start.longitude,y:start.latitude},{x:new_pt.longitude,y:new_pt.latitude}]);
-                                                var f = new GeometryFeature(line);
-                                                f.setStroke({color: start.colour, width: 3});
-                                                map.layer.addFeature(f);
-                                                start = new_pt;
-                                        }
-
-                                }
-
-                                prev = { longitude: longitude, latitude:latitude, colour: colour};
-
-                            var pt = new Point( {x:longitude,y:latitude} );
-                            var f = new GeometryFeature(pt);
-                            var size = 2;
-                            // set the shape properties, fill and stroke
-                            //f.setFill([ 0, 128, 128 ]);
-                            f.setStroke([ 0, 0, 0, 1 ]);
-                            f.setShapeProperties({
-                              r : 2
-                            });
-                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, total dist: "+(p.distance / 1000).toFixed(2)+" km, piece distance: "+( p.distance - piece_start).toFixed(0)+", time: "+ utils.time_to_str(p.time);
-                            // add the feature to the layer
-                            map.layer.addFeature(f);
-                            f.getShape();
-                             pt.shape.connect("onmouseover",function(evt){
-                                             //evt.relatedTarget
-                                             Tooltip.show(pt.tooltip, {x:evt.pageX, y:evt.pageY, w:2, h:2});
-                                                });
-                             pt.shape.connect("onmouseout", function(){
-                                                                //FIXME: Doesn't work
-                                             Tooltip.hide(pt.shape);
-                                                        });
-                        });
-                    var diff_longitude = pb.max_longitude - pb.min_longitude;
-                    var diff_latitude = pb.max_latitude - pb.min_latitude;
-                    var scale = diff_longitude > diff_latitude ? diff_longitude : diff_latitude ;
-                    var bounds =[ parseFloat(pb.min_longitude) + 0.5 * diff_longitude, parseFloat(pb.min_latitude) + 0.5 * diff_latitude ];
-                    //console.log("Bounds "+bounds);
-                    scale =0.1;
-                    //console.log("diff long :"+diff_longitude+" diff lat :" +diff_latitude+" scale : "+scale);
-                    map.map.fitTo({
-                    bounds :[ parseFloat(pb.min_longitude),parseFloat(pb.min_latitude),parseFloat(pb.max_longitude),parseFloat(pb.max_latitude) ]
-                    });
-                    map.layer.redraw();
-                    //console.log(" long [ "+pb.min_longitude+" , "+pb.max_longitude+" ] lat ["+pb.min_latitude+" , "+pb.max_latitude+" ] ");
+                    if(selected_min_speed && selected_max_speed)
+                    {
+                        map.rangeSlider.set("value",[parseFloat(selected_min_speed).toFixed(1), parseFloat(selected_max_speed).toFixed(1)]);
+                        selected_min_speed = null;
+                        selected_max_speed = null;
+                    }
+                    else
+                    {
+                        map.rangeSlider.set("value",[parseFloat(pb.min_speed).toFixed(1), parseFloat(pb.max_speed).toFixed(1)]);
+                    }
+                        map.piece_start = selectionGrids.pieces.grid.selection.getSelected()[0].start *1000;
+                        map.bounds = [ parseFloat(pb.min_longitude),parseFloat(pb.min_latitude),parseFloat(pb.max_longitude),parseFloat(pb.max_latitude) ]
+                        map.redraw(pts);
 
                 });
                 });

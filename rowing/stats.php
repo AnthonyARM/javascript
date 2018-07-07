@@ -6,7 +6,8 @@
         <link rel="stylesheet" href="style.css" media="screen">
         <link rel="stylesheet" href="http://ajax.googleapis.com/ajax/libs/dojo/1.10.1/dijit/themes/claro/claro.css" media="screen">
         <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/dojo/1.10.3/dojox/grid/resources/Grid.css" />
-                        <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/dojo/1.10.3/dojox/grid/resources/claroGrid.css" />
+        <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/dojo/1.10.3/dojox/grid/resources/claroGrid.css" />
+        <link rel="stylesheet" href="//ajax.googleapis.com/ajax/libs/dojo/1.10.3/dojox/form/resources/RangeSlider.css" />
 <style type="text/css">
 body,html { height:100%; }
 </style>

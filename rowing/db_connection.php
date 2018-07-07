@@ -65,7 +65,7 @@ function db_fetch_array( $res )
 function db_to_time( $time, $dec =0 )
 {
     //return $time;
-    return "cast(".$time."/60 as integer)||\"m\"||".db_truncate_float("cast(".$time." as float) % 60",$dec)."||\"s\"";
+    return "cast(".$time."/60 as integer)||\"m\"||".db_truncate_float("cast(".$time." as float) - 60.0 * cast(".$time."/60 as integer)",$dec)."||\"s\"";
 	//return "printf(\"%dm%ds\", ".$time."/60, ".$time." % 60)";
 	//return "printf(\"%dh%dm%ds\",".$time."/3600, ".$time."%3600/60, ".$time." % 60)";
 }
