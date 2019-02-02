@@ -170,7 +170,7 @@ else
 		$query = "INSERT INTO TrackPoints ( outing_id, longitude, latitude, distance, date, time, speed) VALUES ";
 		$query_args_types = "";
 		$query_args = array();
-		$hr_values = array();
+		//$hr_values = array();
 		$num=0;
 		foreach( $points as $pt )
 		{
@@ -195,7 +195,7 @@ else
 			{
 				$hrStr = getNodeText( $hr, "Value");
 			}*/
-			$hr_values[] = $hrStr;
+			//$hr_values[] = $hrStr;
 			if( $first )
 			{
 				$start_time = strtotime($dateStr);
