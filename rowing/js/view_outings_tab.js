@@ -5,9 +5,9 @@ define( {
                           "dojox/geo/openlayers/GeometryFeature", "dojox/geo/openlayers/Point","dojo/_base/window","dojox/geo/openlayers/Collection",
                           "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", 
                           "dojo/_base/Color","dijit/form/MultiSelect", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form", 
-                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid',"dijit/form/Button","dojox/form/HorizontalRangeSlider" ],
+                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid',"dijit/form/Button","dojox/form/HorizontalRangeSlider", "dojox/charting/Chart", "dojox/charting/axis2d/Default", "dojox/charting/plot2d/Lines"],
                      function(ajax, utils, ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
-                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid, Button, HorizontalRangeSlider){
+                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid, Button, HorizontalRangeSlider, Chart, Default, Lines){
 
                 ready(function(){
 
@@ -229,8 +229,19 @@ show) ? "block" : "none"));
                   });
                 this.rangeSlider.onChange(this.rangeSlider.get("value"));
                 main.addChild(this.rangeSlider);
-                var map_container = new ContentPane( { style:'height:100%; overflow:hidden;' });
+
+                var chart_container = new ContentPane( { style: 'height:200px;'});
+
+                var map_container = new ContentPane( { style:'height:100%; margin:20px;overflow:hidden;' });
+                main.addChild( chart_container );
                 main.addChild( map_container );
+                this.chart = new Chart(chart_container.containerNode);
+                this.chart.addPlot("default", {labels:true, type:Lines, markers:true});
+                this.chart.addAxis("x", { majorLabels:true});
+                this.chart.addAxis("y", {vertical:true, majorLabels:true, fixLower: "major", fixUpper: "major", title: "Speed"});
+                this.chart.addSeries("Series 1", []);
+                this.chart.render();
+                //main.addChild(this.chart);
                 this.map = new Map(map_container.containerNode);
                 // create a GfxLayer
                 this.layer = new GfxLayer();
@@ -245,6 +256,9 @@ show) ? "block" : "none"));
                     var min_speed = This.rangeSlider.get("value")[0] / 3.6; /* has to be m/s not kph */
                     var diff_speed = (This.rangeSlider.get("value")[1] - This.rangeSlider.get("value")[0])/ 3.6;
                     var prev = null;
+                    var speeds = [];
+                    var times = []
+                    var start_time = 0;
                     This.layer.clear();
                     arr.forEach( This.pts, function(p)
                     {
@@ -275,6 +289,10 @@ show) ? "block" : "none"));
                                         }
 
                                 }
+                                else
+                                {
+                                    start_time = p.time;
+                                }
 
                                 prev = { longitude: longitude, latitude:latitude, colour: colour};
 
@@ -287,6 +305,8 @@ show) ? "block" : "none"));
                             f.setShapeProperties({
                               r : 2
                             });
+                            speeds.push(p.speed * 3.6);
+                            times.push({ value: times.length, text: utils.time_to_str(p.time - start_time)});
                             pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, total dist: "+(p.distance / 1000).toFixed(2)+" km, piece distance: "+( p.distance - This.piece_start).toFixed(0)+", time: "+ utils.time_to_str(p.time);
                             var p3 = new Point({x:longitude, y:latitude});
                             var f3 = new GeometryFeature(p3);
@@ -307,6 +327,9 @@ show) ? "block" : "none"));
                                              Tooltip.hide(pt.shape);
                                                         });
                         });
+                    map.chart.addSeries("Series 1", speeds);
+                    this.chart.addAxis("x", { majorLabels:true, labels:times});
+                    map.chart.render();
                     map.map.fitTo({
                     bounds : This.bounds
                     });

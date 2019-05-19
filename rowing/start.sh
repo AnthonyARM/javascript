@@ -1,3 +1,4 @@
 #!/bin/sh
 
-npm start
+#npm start
+php -S localhost:9000
