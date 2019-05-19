@@ -5,9 +5,11 @@ define( {
                           "dojox/geo/openlayers/GeometryFeature", "dojox/geo/openlayers/Point","dojo/_base/window","dojox/geo/openlayers/Collection",
                           "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", 
                           "dojo/_base/Color","dijit/form/MultiSelect", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form", 
-                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid',"dijit/form/Button","dojox/form/HorizontalRangeSlider", "dojox/charting/Chart", "dojox/charting/axis2d/Default", "dojox/charting/plot2d/Lines"],
+                          "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid',"dijit/form/Button","dojox/form/HorizontalRangeSlider", "dojox/charting/Chart", "dojox/charting/axis2d/Default", "dojox/charting/plot2d/Lines",
+                          "dojox/charting/action2d/MouseIndicator"],
                      function(ajax, utils, ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
-                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid, Button, HorizontalRangeSlider, Chart, Default, Lines){
+                             Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid, Button, HorizontalRangeSlider, Chart, Default, Lines,
+                     MouseIndicator){
 
                 ready(function(){
 
@@ -252,7 +254,7 @@ show) ? "block" : "none"));
                     var diff_speed = (This.rangeSlider.get("value")[1] - This.rangeSlider.get("value")[0])/ 3.6;
                     var prev = null;
                     var speeds = [];
-                    var times = []
+                    var times = [{value:0, text:"dummy"}];
                     var start_time = 0;
                     This.layer.clear();
                     arr.forEach( This.pts, function(p)
@@ -323,7 +325,19 @@ show) ? "block" : "none"));
                                                         });
                         });
                     map.chart.addSeries("Series 1", speeds);
-                    this.chart.addAxis("x", { majorLabels:true, labels:times});
+                    var chartMouseindicator = new MouseIndicator(this.chart, "default", { series: "Series 1",
+                                        mouseOver: true,
+                                            font: "normal normal bold 12pt Tahoma",
+                                            fillFunc: function(v){
+                                                var ratio = (v.y/3.6 - min_speed ) / diff_speed;
+                                                var colour = Color.blendColors( Color.fromArray([255,0,0]), Color.fromArray([0,255,0]), ratio);
+                                                //console.log(colour+" Ratio : "+ratio);
+                                                return colour;
+                                                                    },
+                                            labelFunc: function(v){
+                                                return times[v.x].text + " / " + v.y.toFixed(2) + "kph";
+                                                                    }});
+                    this.chart.addAxis("x", { majorLabels:true, labels:times, minorLabels:false});
                     this.chart.addAxis("y", {vertical:true, majorLabels:true, fixLower: "major", fixUpper: "major", title: "Speed", min:this.rangeSlider.get("value")[0], max: this.rangeSlider.get("value")[1]});
                     map.chart.render();
                     map.map.fitTo({
