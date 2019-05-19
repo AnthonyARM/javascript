@@ -237,11 +237,6 @@ show) ? "block" : "none"));
                 main.addChild( map_container );
                 this.chart = new Chart(chart_container.containerNode);
                 this.chart.addPlot("default", {labels:true, type:Lines, markers:true});
-                this.chart.addAxis("x", { majorLabels:true});
-                this.chart.addAxis("y", {vertical:true, majorLabels:true, fixLower: "major", fixUpper: "major", title: "Speed"});
-                this.chart.addSeries("Series 1", []);
-                this.chart.render();
-                //main.addChild(this.chart);
                 this.map = new Map(map_container.containerNode);
                 // create a GfxLayer
                 this.layer = new GfxLayer();
@@ -329,6 +324,7 @@ show) ? "block" : "none"));
                         });
                     map.chart.addSeries("Series 1", speeds);
                     this.chart.addAxis("x", { majorLabels:true, labels:times});
+                    this.chart.addAxis("y", {vertical:true, majorLabels:true, fixLower: "major", fixUpper: "major", title: "Speed", min:this.rangeSlider.get("value")[0], max: this.rangeSlider.get("value")[1]});
                     map.chart.render();
                     map.map.fitTo({
                     bounds : This.bounds
