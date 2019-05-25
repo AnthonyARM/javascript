@@ -335,7 +335,7 @@ show) ? "block" : "none"));
                                                 return colour;
                                                                     },
                                             labelFunc: function(v){
-                                                return times[v.x].text + " / " + v.y.toFixed(2) + "kph";
+                                                return times[v.x].text + " / " + v.y.toFixed(2) + "kph / " + utils.time_to_str((0.5 / v.y)*3600) +" /500m";
                                                                     }});
                     this.chart.addAxis("x", { majorLabels:true, labels:times, minorLabels:false});
                     this.chart.addAxis("y", {vertical:true, majorLabels:true, fixLower: "major", fixUpper: "major", title: "Speed", min:this.rangeSlider.get("value")[0], max: this.rangeSlider.get("value")[1]});

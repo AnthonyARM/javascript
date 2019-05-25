@@ -9,7 +9,8 @@ define({
                         str += hours +" h ";
                 if( mins > 0 )
                         str += mins + " min ";
-                str += secs + " secs";
+                str += secs.toFixed(2) + " secs";
+                //console.log("raw "+time_sec+" secs "+secs+" mins "+mins);
                 return str;
         },
         is_trusted: function(){
