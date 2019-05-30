@@ -254,6 +254,7 @@ show) ? "block" : "none"));
                     var diff_speed = (This.rangeSlider.get("value")[1] - This.rangeSlider.get("value")[0])/ 3.6;
                     var prev = null;
                     var speeds = [];
+                    var distances = [0];
                     var times = [{value:0, text:"dummy"}];
                     var start_time = 0;
                     This.layer.clear();
@@ -264,7 +265,7 @@ show) ? "block" : "none"));
                                 var speed = parseFloat( p.speed );
                                 var ratio = (p.speed - min_speed ) / diff_speed;
                                 var colour = Color.blendColors( Color.fromArray([255,0,0]), Color.fromArray([0,255,0]), ratio);
-                                console.log(colour+" Ratio : "+ratio);
+                                //console.log(colour+" Ratio : "+ratio);
 
                                 if( prev)
                                 {
@@ -303,9 +304,10 @@ show) ? "block" : "none"));
                               r : 2
                             });
                             speeds.push(p.speed * 3.6);
+                            distances.push((p.distance - This.piece_start).toFixed(0));
                             times.push({ value: times.length, text: utils.time_to_str(p.time - start_time)});
-                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, total dist: "+(p.distance / 1000).toFixed(2)+" km, piece distance: "+( p.distance - This.piece_start).toFixed(0)+", time: "+ utils.time_to_str(p.time);
-                            var p3 = new Point({x:longitude, y:latitude});
+                            pt.tooltip= (p.speed * 3.6).toFixed(2) + " kph, total dist: "+(p.distance / 1000).toFixed(2)+" km, piece distance: "+distances.back+", time: "+ utils.time_to_str(p.time);
+                            var p3 = new Point({x:longitude, y:latitude, distance: (p.distance - This.piece_start).toFixed(0)});
                             var f3 = new GeometryFeature(p3);
                             f3.createShape = function(s){
                                 return s.createText({text:(p.speed * 3.6).toFixed(2) + " kph, dist: "+( p.distance - This.piece_start).toFixed(0), align:"middle", y:4});
@@ -334,9 +336,32 @@ show) ? "block" : "none"));
                                                 //console.log(colour+" Ratio : "+ratio);
                                                 return colour;
                                                                     },
+                                            labels: false,
                                             labelFunc: function(v){
-                                                return times[v.x].text + " / " + v.y.toFixed(2) + "kph / " + utils.time_to_str((0.5 / v.y)*3600) +" /500m";
+                                                return times[v.x].text + "<br/>" + v.y.toFixed(2) + "kph<br/>" + utils.time_to_str((0.5 / v.y)*3600) +" /500m<br/>"+distances[v.x]+"m";
                                                                     }});
+                    var mouseTooltip = new Tooltip();
+                    on(chartMouseindicator, "Change", function(evt){
+                      if(evt.label)
+                      {
+                        var around = map.chart.getPlot("default").toPage({x: evt.start.x, y: maxVertical });
+                        around.w = 1;
+                        around.h = 1;
+                        mouseTooltip.label = evt.label;
+                        mouseTooltip.position = ["above-centered"];
+                        if (!tooltipShown) {
+                          shown = true;
+                          mouseTooltip.open(around);
+                          } else {
+                          Tooltip._masterTT.containerNode.innerHTML = mouseTooltip.label;
+                          place.around(Tooltip._masterTT.domNode, around, ["above-centered"]);
+                          }
+                          } else {
+                          // hide
+                          mouseTooltip.close();
+                          tooltipShown = false;
+                      }
+                    });
                     this.chart.addAxis("x", { majorLabels:true, labels:times, minorLabels:false});
                     this.chart.addAxis("y", {vertical:true, majorLabels:true, fixLower: "major", fixUpper: "major", title: "Speed", min:this.rangeSlider.get("value")[0], max: this.rangeSlider.get("value")[1]});
                     map.chart.render();
@@ -344,6 +369,8 @@ show) ? "block" : "none"));
                     bounds : This.bounds
                     });
                     This.layer.redraw();
+                    var maxVertical = map.chart.getAxis("y").getScaler().bounds.to;
+                    var tooltipShown = false;
                 };
             }
 
