@@ -1,0 +1,4 @@
+AuthName "Admin only"
+AuthType Basic
+AuthUserFile "/home/www/anthonyb/.htpasswd"
+require valid-user
