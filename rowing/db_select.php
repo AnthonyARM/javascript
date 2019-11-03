@@ -4,9 +4,15 @@ try
 {
 include('db_connection.php');
 
+/*
+    "get_trackpoints_in_range_distance" => function() { return "SELECT * from TrackPoints where id between ".$_POST['start']." AND ".$_POST['end']." AND distance > ".$_POST['distance']; },
+    "get_trackpoints_in_range_time" => function() { return "SELECT * from TrackPoints where id between ".$_POST['start']." AND ".$_POST['end']." AND time > ".$_POST['time']; },
+*/
 $requests = array (
     "get_boats" => function() { return "SELECT * from Boats";},
     "get_crews" => function() { return "SELECT * from Crews";},
+    "get_trackpoints_in_range_distance" => function() { return "SELECT * from TrackPoints where id > ".$_POST['start']." AND distance > ".$_POST['distance']; },
+    "get_trackpoints_in_range_time" => function() { return "SELECT * from TrackPoints where id > ".$_POST['start']." AND time > ".$_POST['time']; },
     "get_trackpoints_in_range" => function() { return "SELECT * from TrackPoints where id between ".$_POST['start']." AND ".$_POST['end']; },
     "get_rowers" => function() { return "SELECT * from Rowers";},
     "get_outings" => function() { return "SELECT Outings.id, Outings.title, Outings.date, Crews.name as crew, Boats.name as boat FROM Outings INNER JOIN Crews ON Outings.crew_id=Crews.id INNER JOIN Boats ON Outings.boat_id=Boats.id ORDER BY Outings.date DESC";},

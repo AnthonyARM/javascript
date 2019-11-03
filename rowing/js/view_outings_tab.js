@@ -6,10 +6,10 @@ define( {
                           "dojo/on", "dijit/Tooltip", "dojo/_base/lang","dojo/_base/array","dojo/dom-geometry", "dojox/geo/openlayers/LineString", 
                           "dojo/_base/Color","dijit/form/MultiSelect", "dijit/form/Select","dojox/layout/TableContainer","dijit/layout/ContentPane","dijit/form/Form", 
                           "dijit/form/CheckBox", "dijit/form/RadioButton", "js/url",'dojo/data/ItemFileWriteStore', 'dojox/grid/DataGrid',"dijit/form/Button","dojox/form/HorizontalRangeSlider", "dojox/charting/Chart", "dojox/charting/axis2d/Default", "dojox/charting/plot2d/Lines",
-                          "dojox/charting/action2d/MouseIndicator"],
+                          "dojox/charting/action2d/MouseIndicator","dijit/Dialog","dijit/form/TextBox"],
                      function(ajax, utils, ready, Map, GfxLayer, GeometryFeature, Point, win, Collection,on, Tooltip, lang, arr, domGeom, LineString, 
                              Color, MultiSelect, Select, TableContainer, ContentPane, Form, CheckBox, RadioButton, url, ItemFileWriteStore, DataGrid, Button, HorizontalRangeSlider, Chart, Default, Lines,
-                     MouseIndicator){
+                     MouseIndicator, Dialog, TextBox){
 
                 ready(function(){
 
@@ -53,6 +53,8 @@ define( {
 
                t.pieces = new MyGrid("pieces", [[
                   {'name': 'Id', 'field': 'id', hidden: true},
+                  {'name': 'Start', 'field': 'trackpoint_start', hidden: true},
+                  {'name': 'End', 'field': 'trackpoint_end', hidden: true},
                   {'name': 'Downstream','field':'downstream', 'width':'100px'},
                   {'name': 'Start (km)','field':'start', 'width':'100px'},
                   {'name': 'End (km)','field':'end', 'width':'100px'},
@@ -69,15 +71,128 @@ define( {
                             console.log("DONE!");
                             t.on_outing_selected();
                         });
-                    
                     }});
+				t.dlg = null;
+                t.custom_piece_btn = new Button( { label:"Create custom piece from selection", onClick: function(){
+                    console.log(parseInt(this.selected_piece_start) - 10);
+					if(!t.dlg) {
+						t.dlg = new Dialog({title:"Adding a custom piece"});
+						var length = new TextBox({name:"length", value: "0"});
+						var duration = new TextBox({name:"duration", value: "0"});
+						var table = new TableContainer( { cols: 2, showLabels:false } );
+						table.addChild( new ContentPane({content:"Force length (m):"}));
+						table.addChild(length);
+						table.addChild( new ContentPane({content:"Force duration (s):"}));
+						table.addChild(duration);
+						t.dlg.points = new MyGrid("points", [[
+							{'name': 'Id', 'field': 'id', hidden: true, sortDesc: false},
+							{'name': 'Speed (kph)', 'field': 'speed', 'width':'100px', editable:false},
+							{'name': 'Time', 'field': 'date', 'width':'140px', editable:false},
+						]], table);
+						t.dlg.points.grid.set('colspan','2');
+						t.dlg.points.grid.set('height','20em');
+						t.dlg.points.data = [];
+						table.addChild(new Button({ label:"+10 Before", onClick: function(){
+							ajax.get_trackpoints(parseInt(t.dlg.points.first) - 10, parseInt(t.dlg.points.first) -1, function(pts){
+								for(p of pts) {
+									p.speed = p.speed * 3.6;
+								}
+								t.dlg.points.data = pts.concat(t.dlg.points.data);
+								t.dlg.points.clear_store();
+								t.dlg.points.first = t.dlg.points.data[0].id;
+								t.dlg.points.last = t.dlg.points.data[t.dlg.points.data.length -1].id;
+								for(p of t.dlg.points.data) {
+									t.dlg.points.store.newItem(p);
+								}
+							});
+						}}));
+						table.addChild(new Button({ label:"+10 After", onClick: function(){
+							ajax.get_trackpoints(parseInt(t.dlg.points.last) + 1, parseInt(t.dlg.points.last) +10, function(pts){
+								for(p of pts) {
+									p.speed = p.speed * 3.6;
+								}
+								t.dlg.points.data = t.dlg.points.data.concat(pts)
+								t.dlg.points.clear_store();
+								t.dlg.points.first = t.dlg.points.data[0].id;
+								t.dlg.points.last = t.dlg.points.data[t.dlg.points.data.length -1].id;
+								for(p of t.dlg.points.data) {
+									t.dlg.points.store.newItem(p);
+								}
+							});
+						}}));
+						var this_btn = this;
+						table.addChild(new Button({ label:"OK", onClick: function(){
+							if(t.dlg.points.selected_point) {
+								var start = t.dlg.points.selected_point;
+								var end;
+								var create = function(piece_id, start, end) {
+									if(end){
+										console.log(piece_id+" / "+start.id+" / "+end);
+										ajax.create_custom_piece(piece_id, start.id, end, function(){
+											console.log("Returned");
+											t.dlg.hide();
+										});
+									}
+									else {
+										console.log("Failed to find the end of the piece");
+									}
+								}
+								console.log(start);
+								if(duration.value > 0) {
+									var first = start.id;
+									ajax.get_trackpoints_time( start.id, this_btn.selected_piece_end, parseInt(start.time) + parseInt(duration.value), function(pts) {
+										console.log(pts[0].time - start.time)
+										create(this_btn.selected_piece,start, pts[0].id);
+									});
+								}
+								else if(length.value > 0 ){
+									ajax.get_trackpoints_distance( start.id, this_btn.selected_piece_end, parseInt(start.distance)+ parseInt(length.value), function(pts) {
+										console.log(pts[0].distance - start.distance)
+										create(this_btn.selected_piece,start, pts[0].id);
+									});
+								} else {
+									create(this_btn.selected_piece, start, this_btn.selected_piece_end);
+								}
+							}
+						}}));
+						table.addChild(new Button({label:"Cancel", onClick: function(){ t.dlg.hide();}}));
+						t.dlg.addChild(table);
+						on( t.dlg.points.grid, 'Selected', function(idx) {
+							var point = t.dlg.points.grid.selection.getSelected()[0];
+							t.dlg.points.selected_point = point;
+						});
+					}
+					ajax.get_trackpoints( parseInt(this.selected_piece_start) - 10, parseInt(this.selected_piece_start) + 5, function( pts ){
+						console.log(pts);
+						for(p of pts) {
+							p.speed = p.speed * 3.6;
+						}
+						t.dlg.points.data = pts;
+						t.dlg.points.clear_store();
+						t.dlg.show();
+						t.dlg.points.first = t.dlg.points.data[0].id;
+						t.dlg.points.last = t.dlg.points.data[t.dlg.points.data.length -1].id;
+						for(p of t.dlg.points.data) {
+							console.log(p);
+							t.dlg.points.store.newItem(p);
+						}
+					});
+				}});
                 main.addChild(t.delete_piece_btn);
+                main.addChild(t.custom_piece_btn);
                 t.delete_piece_btn.show = function( show )
                 {
                     t.delete_piece_btn.set("style","display:" + ((utils.is_trusted() &&
 show) ? "block" : "none"));
                 };
+                t.custom_piece_btn.show = function( show )
+                {
+                    t.custom_piece_btn.set("style","display:" + ((utils.is_trusted() &&
+show) ? "block" : "none"));
+                };
                 t.delete_piece_btn.show( false );
+                t.custom_piece_btn.show( false );
+
                t.PBs= new MyGrid("PBs", [[ {'name': 'Id', 'field': 'id', hidden: true},
                   {'name': 'Distance (m)','field':'distance', 'width':'100px'},
                   {'name': 'Duration','field':'fmt_duration', 'width':'100px'},
@@ -135,6 +250,7 @@ show) ? "block" : "none"));
                     ajax.get_pieces( outing.id, function( list ){
                        t.PBs.show( false );
                        t.delete_piece_btn.show( false );
+                       t.custom_piece_btn.show( false );
                        t.pieces.clear_store();
                        t.pieces.grid.selection.clear();
                        var idx = 0;
@@ -176,7 +292,11 @@ show) ? "block" : "none"));
                         }
                         t.PBs.show( true );
                         t.delete_piece_btn.show( true );
+                        t.custom_piece_btn.show( true );
                         t.delete_piece_btn.selected_piece = piece.id;
+                        t.custom_piece_btn.selected_piece_start = piece.trackpoint_start;
+                        t.custom_piece_btn.selected_piece_end = piece.trackpoint_end;
+                        t.custom_piece_btn.selected_piece = piece.id;
                     });
                 });
 

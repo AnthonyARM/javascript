@@ -49,6 +49,9 @@ function execute_insert_query( cb, params )
 }
 
 define({
+            create_custom_piece: function( piece_id, start_pt, end_pt, cb ) {
+                execute_insert_query(cb, { query: "create_custom_piece", piece_id:piece_id, start:start_pt, end:end_pt});
+            },
             get_pbs: function( piece_id, cb ) {
                 execute_select_query(cb, { query: "get_pbs", piece_id: piece_id});
             },
@@ -63,6 +66,12 @@ define({
             },
             get_trackpoints : function( id_start, id_end, cb ) {
                     execute_select_query(cb, { query: "get_trackpoints_in_range", start: id_start, end:id_end });
+            },
+            get_trackpoints_time : function( id_start, id_end, time, cb ) {
+                    execute_select_query(cb, { query: "get_trackpoints_in_range_time", start: id_start, end:id_end, time:time });
+            },
+            get_trackpoints_distance : function( id_start, id_end, distance, cb ) {
+                    execute_select_query(cb, { query: "get_trackpoints_in_range_distance", start: id_start, end:id_end, distance:distance });
             },
             get_rowers : function( cb ) {
                     execute_select_query(cb, { query: "get_rowers" });

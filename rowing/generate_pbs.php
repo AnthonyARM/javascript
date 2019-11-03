@@ -261,6 +261,40 @@ function getPBDistances( $mysqli )
     return $distances;
 }
 
+function add_custom_piece( $existing_piece, $start, $end, $mysqli)
+{
+    $pb_distances = getPBDistances( $mysqli );
+	$piece = new Piece();
+    $res = $mysqli->query("SELECT * from TrackPoints WHERE id between (".$start."-1) AND ".$end);
+    if(!$res)
+            die("ERROR : ".$mysqli->error."<br/>");
+    $points = array();
+    $prev = NULL;
+    while ($row = db_fetch_array($res)) 
+    {
+            $point = new Point( $prev, $row["distance"], $row["date"], $row["time"], $row["speed"], $row["id"], $row["longitude"], $row["latitude"]);
+			if($prev)
+				$points[] = $point;
+            $prev = $point;
+    }
+
+    $row = db_fetch_array($res);
+	$piece->start = $points[0];
+	$piece->end = $prev;
+	$res = $mysqli->query("SELECT * from Pieces WHERE id = ".$existing_piece);
+    if(!$res)
+            die("ERROR : ".$mysqli->error."<br/>");
+    $row = db_fetch_array($res);
+
+	if(!$piece->process($pb_distances, 0, 0))
+		die("ERROR: Failed to process piece<br/>");
+	$piece->downstream = $row["downstream"];
+	$pieces = array();
+	$pieces[]=$piece;
+	addPiecesToDB($row["outing_id"], $pieces, $mysqli);
+	return 0;
+}
+
 function generate_pbs( $outing_id, $crew_id, $mysqli, $flow_direction )
 {
     $pb_distances = getPBDistances( $mysqli );

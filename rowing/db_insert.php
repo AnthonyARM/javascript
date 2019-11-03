@@ -1,6 +1,7 @@
 <?php
 
 include('db_connection.php');
+include('generate_pbs.php');
 
 function validate_column_name( $column, $table )
 {
@@ -21,6 +22,13 @@ function validate_column_name( $column, $table )
     return 1;
 
 }
+function create_custom_piece()
+{
+	global $_POST;
+	global $mysqli;
+	return add_custom_piece($_POST['piece_id'], $_POST['start'], $_POST['end'], $mysqli);
+}
+
 function new_crew()
 {
         global $_POST;
@@ -74,6 +82,9 @@ if( array_key_exists( $_POST['query'], $requests ) )
         }
 		$stmt->close();
         echo db_last_insert_id();
+}
+elseif( $_POST['query'] == "create_custom_piece"){
+	create_custom_piece();
 }
 else
         echo "ERROR: Unknown query '".$_POST['query']."'<br/>";

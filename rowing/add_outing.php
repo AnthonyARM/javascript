@@ -207,7 +207,12 @@ else
 				$delta = calculate_distance($prev_lat, $prev_lon, $latStr, $lonStr);
 				$distance += $delta;
 				$time = strtotime($dateStr) - $start_time;
+				if($time == $prev_time) {
+					$speed = 0.0;
+				}
+				else {
 				$speed = $delta / ($time - $prev_time);
+				}
 				if($num != 0 )
 					$query .=", ";
 				$query .= "($outing_id, ?, ?, ?, ?, $time, $speed)";
